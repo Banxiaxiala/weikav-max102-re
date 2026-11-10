@@ -393,7 +393,9 @@ WebHID 只在**安全上下文**可用：
 
 ## 相关项目
 
-### 外设电量 · [marsuyone/mchose-battery-tray](https://github.com/marsuyone/mchose-battery-tray)
+### 外设电量（托盘监控工具）
+
+> 📌 **仓库地址待补充** —— 该项目目前尚未发布，发布后在此填写。
 
 一个托盘小工具，**一个图标同时显示鼠标 / 耳机 / 键盘的电量**。
 
@@ -403,7 +405,7 @@ WebHID 只在**安全上下文**可用：
 - **蓝牙模式** → 读 Windows 的 `DEVPKEY_Bluetooth_Battery` 系统属性
 
 ```
-外设电量.exe  ──┬── 2.4G dongle  ──→ VIA cmd 20 ──→ 本补丁固件 ✅
+托盘监控程序  ──┬── 2.4G dongle  ──→ VIA cmd 20 ──→ 本补丁固件 ✅
                 └── 蓝牙          ──→ 系统 PnP 属性 ──→ FR8003A 模块 ✅
 ```
 
