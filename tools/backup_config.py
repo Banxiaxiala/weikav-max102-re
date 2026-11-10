@@ -9,13 +9,18 @@ MAX102 EEPROM 配置完整备份  (READ-ONLY)
   - VIA 相关 keyboard value (protocol / firmware / uptime / layout)
 
 本脚本只发送 GET 类命令，绝不写入键盘、不调用 EEPROM_RESET、不跳 bootloader。
-输出到 backup_<时间戳>.json
+输出到 temp/backup_<时间戳>.json
 """
 
 import json
 import os
 import sys
 import time
+from pathlib import Path
+
+# 所有运行时产物统一落到仓库的 temp/ 目录（已 gitignore）
+ROOT = Path(__file__).resolve().parent.parent
+TEMP_DIR = ROOT / "temp"
 
 try:
     import hid
@@ -205,11 +210,12 @@ def main():
     finally:
         kb.close()
 
-    fn = "backup_%s.json" % time.strftime("%Y%m%d_%H%M%S")
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    fn = TEMP_DIR / ("backup_%s.json" % time.strftime("%Y%m%d_%H%M%S"))
     with open(fn, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print()
-    print("✅ 已保存: %s" % os.path.abspath(fn))
+    print("✅ 已保存: %s" % fn)
     return 0
 
 

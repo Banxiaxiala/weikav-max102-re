@@ -15,12 +15,17 @@ MAX102 只读探测器  (READ-ONLY, 绝不写入键盘)
 import json
 import sys
 import os
+from pathlib import Path
 
 try:
     import hid
 except ImportError:
     print("[!] 缺少 hidapi:  pip install hidapi")
     sys.exit(1)
+
+# 所有运行时产物统一落到仓库的 temp/ 目录（已 gitignore）
+ROOT = Path(__file__).resolve().parent.parent
+TEMP_DIR = ROOT / "temp"
 
 VENDOR_ID = 0x342D
 PRODUCT_ID = 0xE537
@@ -143,7 +148,7 @@ class Max102VIA:
 # 3. 主流程
 # --------------------------------------------------------------------------
 def main():
-    outdir = os.environ.get("MAX102_OUT", os.getcwd())
+    outdir = os.environ.get("MAX102_OUT", str(TEMP_DIR))
     os.makedirs(outdir, exist_ok=True)
 
     target = list_all_devices()

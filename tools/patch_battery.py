@@ -31,8 +31,10 @@ from pathlib import Path
 
 # ---------------------------------------------------------------- 常量
 
-SRC_DEFAULT = "firmware/max102_stock_trimmed.bin"
-DST_DEFAULT = "firmware/max102_patched_battery.bin"
+ROOT = Path(__file__).resolve().parent.parent
+
+SRC_DEFAULT = ROOT / "firmware/max102_stock_trimmed.bin"
+DST_DEFAULT = ROOT / "firmware/max102_patched_battery.bin"
 BASE = 0x08000000
 
 # tbh 表（cmd 0x06 项）
@@ -42,15 +44,15 @@ SLOT_ENTRY = TBH_TABLE + CMD_SLOT * 2          # 0x08009958
 SLOT_EXPECT = 0x0050                           # 原值（指向 0x080099EC）
 
 # 新 handler
-HANDLER = 0x08010D34
-POOL = 0x08010D58
+HANDLER = 0x0800FD82
+POOL = 0x0800FDA4
 
 # 要读的 RAM
 RESP_PTR_LITERAL = 0x08009AAC                  # 该处存 0x20000F60
 MD_INFO = 0x20000C7D                           # {state, indicator, version, bat}
 
 # 期望的空闲区大小（含池）
-REGION_END = 0x08010D60
+REGION_END = 0x0800FE6E
 
 
 # ---------------------------------------------------------------- 工具
@@ -115,15 +117,20 @@ def preflight(buf):
                 f"代码区 {HANDLER:#x}..{REGION_END:#x} 全零空白",
                 f"{len(region)} 字节")
 
-    # 5. 该地址没有被任何 4 字节对齐的字面量引用
+    # 5. 整段区域内不允许被任何 32/16 位值指向（防字面量池/表项误伤）
     import struct as _s
     refs = []
     for i in range(0, len(buf) - 3):
-        if _s.unpack("<I", buf[i:i + 4])[0] == HANDLER:
-            refs.append(BASE + i)
+        v = _s.unpack("<I", buf[i:i + 4])[0]
+        if HANDLER <= v < REGION_END:
+            refs.append((BASE + i, v))
+    for i in range(0, len(buf) - 1):
+        v = _s.unpack("<H", buf[i:i + 2])[0]
+        if HANDLER <= v < REGION_END:
+            refs.append((BASE + i, v))
     ok &= check(not refs,
-                f"{HANDLER:#x} 无字面量引用",
-                f"{len(refs)} 处: {[hex(r) for r in refs[:5]]}" if refs else "0 处")
+                f"{HANDLER:#x}..{REGION_END:#x} 无任何指针引用",
+                f"{len(refs)} 处: {[(hex(a), hex(v)) for a, v in refs[:5]]}" if refs else "0 处")
 
     if not ok:
         die("前置检查未通过，未生成任何文件。")

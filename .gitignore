@@ -26,6 +26,10 @@ wb_dfu_usb_driver*/
 libusb-1.0.dll
 openocd*.cfg
 
+# ===== 临时 / 本地产物统一目录 =====
+# temp/ 里放：探测输出、EEPROM 备份、Ghidra 反编译产物、一次性脚本
+temp/
+
 # ===== 运行时生成的配置备份（含本机信息）=====
 backup_*.json
 max102_info.json
@@ -44,3 +48,6 @@ functions.txt
 *.sr
 *.logicdata
 *.pcapng
+
+# ===== 官方资料包（厂家发布，保留以便溯源）=====
+MAX102json.zip

@@ -2,7 +2,7 @@
 
 [![QMK](https://img.shields.io/badge/QMK-VIA%20v12-blue)](https://qmk.fm)
 [![MCU](https://img.shields.io/badge/MCU-WB32FQ95%20Cortex--M3-orange)]()
-[![License](https://img.shields.io/badge/License-MIT%20%2B%20GPL--2.0-green)](NOTICE.md)
+[![License](https://img.shields.io/badge/License-MIT%20%2B%20GPL--2.0-green)](docs/NOTICE.md)
 
 维咖 MAX102（Weikav MAX102）三模无线机械键盘的硬件与固件逆向工程记录。
 
@@ -34,13 +34,16 @@
 
 | 文档 | 内容 |
 |---|---|
-| **[DEBUG.md](DEBUG.md)** | **调试入口全图** —— DFU / SWD / UART 三层，含救砖流程与常见故障速查 |
-| **[ANALYSIS.md](ANALYSIS.md)** | 完整分析报告 —— 硬件识别、固件读取、VIA 协议、5 层键位表、QMK 移植评估 |
-| **[BATTERY.md](BATTERY.md)** | 电量链路完整还原 + 三条上报路线（含代码方案） |
-| **[DISASSEMBLY.md](DISASSEMBLY.md)** | Ghidra 反编译结果 —— 520 个函数、中断向量表、RAM 布局、字符串 |
-| **[HANDOVER.md](HANDOVER.md)** | 项目现状、环境配置、已确认事实清单、风险点 |
-| **[NEEDED.md](NEEDED.md)** | 还缺哪些硬件信息、怎么测、哪些其实不需要 |
-| **[NOTICE.md](NOTICE.md)** | ⚠️ **版权与使用声明 —— 使用前必读** |
+| **[DEBUG.md](docs/DEBUG.md)** | **调试入口全图** —— DFU / SWD / UART 三层，含救砖流程与常见故障速查 |
+| **[ANALYSIS.md](docs/ANALYSIS.md)** | 完整分析报告 —— 硬件识别、固件读取、VIA 协议、5 层键位表、QMK 移植评估 |
+| **[BATTERY.md](docs/BATTERY.md)** | 电量链路完整还原 + 三条上报路线（含代码方案） |
+| **[DISASSEMBLY.md](docs/DISASSEMBLY.md)** | Ghidra 反编译结果 —— 520 个函数、中断向量表、RAM 布局、字符串 |
+| **[HANDOVER.md](docs/HANDOVER.md)** | 项目现状、环境配置、已确认事实清单、风险点 |
+| **[NEEDED.md](docs/NEEDED.md)** | 还缺哪些硬件信息、怎么测、哪些其实不需要 |
+| **[HARDWARE.md](docs/HARDWARE.md)** | 矩阵 / UART / USB 引脚（全部从固件还原，不用万用表） |
+| **[PATCH_PLAN.md](docs/PATCH_PLAN.md)** | 电量二进制补丁的完整设计与验证 |
+| **[VIA_PROTOCOL.md](docs/VIA_PROTOCOL.md)** | VIA 命令号实测对照（官方驱动 vs 固件 vs 本地工具） |
+| **[NOTICE.md](docs/NOTICE.md)** | ⚠️ **版权与使用声明 —— 使用前必读** |
 
 ---
 
@@ -48,15 +51,20 @@
 
 ```
 .
-├── README.md                  本文件
-├── DEBUG.md                   调试入口（DFU / SWD / UART）
-├── ANALYSIS.md                完整分析报告
-├── BATTERY.md                 电量链路与上报方案
-├── DISASSEMBLY.md             反编译结果
-├── HANDOVER.md                项目移交文档
-├── NEEDED.md                  待采集清单
-├── NOTICE.md                  版权与使用声明
+├── README.md                  本文件（唯一留在根目录的文档）
 ├── LICENSE                    MIT（不覆盖固件与 via.json）
+│
+├── docs/                      全部分析文档
+│   ├── DEBUG.md               调试入口（DFU / SWD / UART）
+│   ├── ANALYSIS.md            完整分析报告
+│   ├── BATTERY.md             电量链路与上报方案
+│   ├── DISASSEMBLY.md         反编译结果
+│   ├── HANDOVER.md            项目移交文档
+│   ├── HARDWARE.md            矩阵 / UART / USB 引脚
+│   ├── NEEDED.md              待采集清单
+│   ├── PATCH_PLAN.md          电量二进制补丁设计
+│   ├── VIA_PROTOCOL.md        VIA 命令号实测对照
+│   └── NOTICE.md              版权与使用声明
 │
 ├── firmware/
 │   ├── max102_stock_256k.bin  原厂固件全片 256KB（救命用）
@@ -67,12 +75,19 @@
 │   ├── probe_max102.py        探测设备、读协议版本、dump keymap
 │   ├── backup_config.py       完整备份 keymap + 宏 + 参数
 │   ├── decode_keymap.py       把 raw dump 解码成可读键位表
+│   ├── read_battery.py        读电量 / 充电状态
+│   ├── patch_battery.py       电量二进制补丁工具
 │   ├── keymap_readable.txt    工厂默认键位表（5 层全）
 │   └── max102_via.json        厂商 VIA 定义
 │
-└── scripts/
-    ├── Max102Post.java        Ghidra：建向量表符号 + 全段反汇编
-    └── ExportDecomp.java      Ghidra：导出 C 伪代码
+├── scripts/
+│   ├── Max102Post.java        Ghidra：建向量表符号 + 全段反汇编
+│   └── ExportDecomp.java      Ghidra：导出 C 伪代码
+│
+└── temp/                      临时与本地产物（不进 git）
+    ├── max102_info.json       探测器输出
+    ├── backup_<时间戳>.json   EEPROM 配置备份
+    └── ghidra_out/            Ghidra 反编译产物
 ```
 
 ---
@@ -85,12 +100,27 @@
 pip install hidapi
 
 # 前置：USB 连接 + 电源开关 ON + FN+T 切有线模式
-python tools/probe_max102.py      # → max102_info.json
-python tools/backup_config.py     # → backup_<时间戳>.json
-python tools/decode_keymap.py     # → keymap_readable.txt
+python tools/probe_max102.py      # → temp/max102_info.json
+python tools/backup_config.py     # → temp/backup_<时间戳>.json
+python tools/decode_keymap.py     # → tools/keymap_readable.txt
 ```
 
+> 临时产物（探测输出、配置备份、Ghidra 反编译结果）统一落在 `temp/`，
+> 该目录已在 `.gitignore` 中排除。
+
 三个脚本**只发 GET 类命令**，不写 EEPROM、不跳 bootloader。源码可逐行审计。
+脚本内部用绝对路径定位仓库，**任意目录下运行都可以**。
+
+> 产物位置：`temp/max102_info.json`（探测）、`temp/backup_<时间戳>.json`（备份）、
+> `tools/keymap_readable.txt`（可读键位表）。`temp/` 不进 git。
+
+### 读电量（需先刷电量补丁，见 PATCH_PLAN）
+
+```bash
+py -3.13 tools/read_battery.py          # 读一次
+py -3.13 tools/read_battery.py -w 2     # 每 2 秒刷新
+py -3.13 tools/read_battery.py --json   # 给其他程序用
+```
 
 预期输出：
 
@@ -127,7 +157,7 @@ wb32-dfu-updater_cli.exe -R      # 复位回正常模式
 | 二次读取 | MD5 完全一致 ✅ |
 | 有效长度 | `0x10D33`（约 68KB），其后全 `0x00` |
 
-详细步骤与救砖流程见 **[DEBUG.md](DEBUG.md)**。
+详细步骤与救砖流程见 **[DEBUG.md](docs/DEBUG.md)**。
 
 ---
 
@@ -237,7 +267,7 @@ QMK 维护者已暂停 Weikav 的所有 PR，直到交出全部源码。
 > **不需要逻辑分析仪。**
 
 1. 实现 `DEV BT1-5` / `DEV 2.4G` / `HS_BATQ`
-2. 电量上报（`0xA6 0x53` → `0x5C`，见 [BATTERY.md](BATTERY.md)）
+2. 电量上报（`0xA6 0x53` → `0x5C`，见 [BATTERY.md](docs/BATTERY.md)）
 3. 低功耗调优
 4. 可直接复用 `keyboards/westberry/wireless/`
 
@@ -260,7 +290,7 @@ QMK 维护者已暂停 Weikav 的所有 PR，直到交出全部源码。
 本项目为**个人硬件研究**，所有固件读取均在**自己拥有的设备**上进行。
 
 - `firmware/` 中的固件**版权归 LEKU / Weikav 所有**，作为 QMK 衍生作品推定为 **GPL-2.0**；
-  **厂商从未公开对应源码**，故本仓库无法满足 GPL-2.0 第 3 条（见 **[NOTICE.md](NOTICE.md)**）
+  **厂商从未公开对应源码**，故本仓库无法满足 GPL-2.0 第 3 条（见 **[NOTICE.md](docs/NOTICE.md)**）
 - `tools/max102_via.json` 是厂商配置数据，不在 MIT 范围
 - 刷机有风险，**后果自负**
 - 拆机将使**保修失效**
@@ -269,7 +299,7 @@ QMK 维护者已暂停 Weikav 的所有 PR，直到交出全部源码。
 
 权利人对收录内容有异议请开 Issue，确认身份后**立即移除**。
 
-完整条款见 **[NOTICE.md](NOTICE.md)**。
+完整条款见 **[NOTICE.md](docs/NOTICE.md)**。
 
 希望 Weikav 官方能开源：`support@weikav.com`
 
@@ -277,11 +307,14 @@ QMK 维护者已暂停 Weikav 的所有 PR，直到交出全部源码。
 
 ## 📜 License
 
-本文档与脚本（`*.md`、`tools/*.py`、`scripts/*.java`）以 **MIT** 协议发布。
+本文档与脚本（`README.md`、`docs/*.md`、`tools/*.py`、`scripts/*.java`）以 **MIT** 协议发布。
+
+`temp/` 目录里的东西（探测输出、配置备份、反编译产物）都是本机生成的临时文件，
+已被 `.gitignore` 排除，不入库也不属于发布内容。
 
 `firmware/*.bin` 推定为 **GPL-2.0**（QMK 衍生作品），但厂商从未公开源码，
-因此无法满足 GPL-2.0 §3 —— 详见 [NOTICE.md](NOTICE.md) 第 2 节。
+因此无法满足 GPL-2.0 §3 —— 详见 [NOTICE.md](docs/NOTICE.md) 第 2 节。
 
 `tools/max102_via.json` 许可状态不明，不在 MIT 覆盖范围内。
 
-完整条款见 [NOTICE.md](NOTICE.md)。
+完整条款见 [NOTICE.md](docs/NOTICE.md)。

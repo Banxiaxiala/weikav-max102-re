@@ -1,9 +1,24 @@
 # -*- coding: utf-8 -*-
-"""把 max102_info.json 的 raw keymap 解码成可读的 QMK 键名。"""
-import json, sys
+"""把 temp/max102_info.json 的 raw keymap 解码成可读的 QMK 键名。
 
-d = json.load(open('max102_info.json', encoding='utf-8'))
-via = json.load(open('max102_via.json', encoding='utf-8'))
+输入：temp/max102_info.json（probe_max102.py 的输出）
+输出：tools/keymap_readable.txt
+"""
+import json, sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent          # tools/
+TEMP = HERE.parent / "temp"
+
+INFO = TEMP / "max102_info.json"
+VIA = HERE / "max102_via.json"
+OUT = HERE / "keymap_readable.txt"
+
+if not INFO.exists():
+    sys.exit("找不到 %s，先跑 python tools/probe_max102.py" % INFO)
+
+d = json.load(open(INFO, encoding='utf-8'))
+via = json.load(open(VIA, encoding='utf-8'))
 km = d['keymap']
 
 BASE = {
@@ -109,5 +124,6 @@ for L in range(d['layer_count']):
     out.append('')
 
 txt = '\n'.join(out)
-open('keymap_readable.txt', 'w', encoding='utf-8').write(txt)
+OUT.write_text(txt, encoding='utf-8')
+print('已写入: %s' % OUT, file=sys.stdout)
 sys.stdout.buffer.write(txt.encode('utf-8'))
