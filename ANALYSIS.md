@@ -575,7 +575,7 @@ enum {
 ### 11.3 刷回原厂固件
 
 ```bash
-cd C:\Users\bx129\wb32tool
+cd <wb32-dfu-updater>
 
 # 1. 进 DFU：按住 FN → 按住右 Shift → 点 ESC
 # 2. 确认设备
@@ -606,7 +606,7 @@ python backup_config.py     # 完整备份（keymap + 宏）
 python decode_keymap.py     # 生成可读键位表
 
 # ===== 驱动安装（管理员） =====
-cd C:\Users\bx129\wb32tool\wb_dfu_usb_driver_v1.0.0.0
+cd <wb32-dfu-updater>\driver\wb_dfu_usb_driver_v1.0.0.0
 dpinst_amd64.exe            # 安装 WinUSB 驱动
 dpinst_amd64.exe /u wb_device_in_dfu_mode.inf   # 卸载
 ```
