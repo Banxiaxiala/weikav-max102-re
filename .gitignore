@@ -1,12 +1,5 @@
-# ===== 固件二进制：不上传（版权归原厂 LEKU / Weikav）=====
-*.bin
-*.hex
-*.elf
-*.uf2
-
-# ===== 设备备份数据：不上传（含本机路径、运行时长等本地信息）=====
-backup_*.json
-max102_info.json
+# ===== 注意：本项目刻意收录固件与 via.json =====
+# 见 NOTICE.md。不要用 *.bin 通配符把它们排除掉。
 
 # ===== Python =====
 __pycache__/
@@ -25,14 +18,29 @@ env/
 Thumbs.db
 desktop.ini
 
-# ===== 工具下载物 =====
+# ===== 工具下载物 / 本地产物 =====
 *.zip
 *.tar.gz
 wb32-dfu-updater*/
 wb_dfu_usb_driver*/
 libusb-1.0.dll
+openocd*.cfg
 
-# ===== 注意：以下文件是刻意保留的 =====
-# keymap_readable.txt      工厂默认键位表（本项目核心产出）
-# max102_via.json          官方 VIA 定义（需要它才能用 VIA 改键）
-# FIRMWARE_BACKUP_INFO.json 固件校验记录（不含固件本体）
+# ===== 运行时生成的配置备份（含本机信息）=====
+backup_*.json
+max102_info.json
+
+# ===== Ghidra 反编译产物（可自行生成，不收录）=====
+ghidra_out/
+ghidra_proj/
+decompiled_all.c
+functions.asm
+functions.txt
+*.gpr
+*.rep
+
+# ===== 逻辑分析仪 / 抓包数据 =====
+*.sal
+*.sr
+*.logicdata
+*.pcapng

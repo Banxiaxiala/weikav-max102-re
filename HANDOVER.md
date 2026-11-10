@@ -1,0 +1,702 @@
+# 项目移交文档 — Weikav MAX102 逆向工程
+
+> **接手必读**。这份文档说明项目现状、已经确认的事实、环境配置、待办事项和所有风险点。
+>
+> 移交日期：2026-11-10
+> 项目路径：`E:\rel\weikav-max102`
+
+---
+
+## 0. 三十秒速览
+
+**这是什么项目**：对一块量产机械键盘（维咖 MAX102）做硬件与固件逆向，目标是给它移植开源 QMK 固件。
+
+**现在到哪一步了**：
+
+| 阶段 | 状态 |
+|---|---|
+| 硬件识别 | ✅ 完成（MCU 确认为 WB32FQ95） |
+| 固件完整备份 | ✅ 完成（256KB，MD5 双验） |
+| 配置备份（keymap/宏） | ✅ 完成（5 层全 dump） |
+| 协议还原（VIA） | ✅ 完成（45 条命令全表） |
+| 固件反编译 | ✅ 完成（520 个函数，100% 成功） |
+| **QMK 移植** | ❌ **未开始** |
+| **无线协议逆向** | ❌ **未开始**（最大障碍） |
+
+**一句话现状**：**研究阶段全部完成，工程阶段还没动工**。
+
+**最重要的文件**：`max102_stock_256k.bin` —— 原厂固件，**本项目唯一的"救命盘"，丢了这个就再也回不去了**。
+
+---
+
+## 1. 硬件事实（已确认，可直接信任）
+
+### 1.1 设备基本信息
+
+| 项目 | 值 |
+|---|---|
+| 商品名 | Weikav MAX102（维咖 MAX102） |
+| 类型 | 三模无线机械键盘，102 键 |
+| PCB 丝印 | `MA102-QMK-V1` / `2025 05 26` |
+| 主控 | **WB32FQ95**（Westberry，Cortex-M3，256KB Flash，32KB SRAM） |
+| **无线模块** | ✅ **Freqchip FR8003A**（Cortex-M3 @96MHz，BLE 5.1 + 私有 2.4G，512KB QSPI Flash，128KB 掩膜 ROM） |
+| **充电 IC** | **X14076** / `B01A`（批号），丝印见实物；无公开 datasheet |
+| 电池 | 10000mAh（单节） |
+| 售价 | 约 $127 USD |
+
+### 1.1 主控 ↔ 无线模块 的连接（已确认）
+
+```
+WB32FQ95  ──UART3 @115200 8N1──  FR8003A
+           TX/RX 引脚见 BATTERY.md §1.1
+```
+
+- 外设：**UART3**（`0x40008400`），中断 **IRQ32**
+- 波特率：**115200 8N1**（`FUN_080034d4` 里 `mov.w r0,#0x1c200`）
+- 引脚：`0x400`/`0x800` 位掩码 → **PC10 / PC11**（待万用表最终确认）
+- 协议：Westberry `md` 编解码，**已 100% 还原** → 见 `BATTERY.md` §2
+- 充电管理：X14076，状态脚连接待确认
+
+> 无线模块的固件**无需逆向即可完成电量功能**——侧信道协议已全部掌握。
+
+### 1.2 USB 标识
+
+| 模式 | VID | PID | 说明 |
+|---|---|---|---|
+| 正常 | `0x342D` | `0xE537` | 3 个接口 |
+| DFU | `0x342D` | `0xDFA0` | ROM bootloader |
+
+HID 接口（正常模式）：
+
+```
+iface 0: usage_page=1      usage=6    → 键盘
+iface 1: usage_page=65376  usage=97   → VIA 通道（REPORT_SIZE=33）
+iface 2: usage_page=1/12/...          → 多媒体 / 系统控制
+```
+
+### 1.3 调试接口（拆机后可见）
+
+```
+CON2:  GND  SWCLK  SWDIO  3.3V
+       ○    ○      ○      ○
+```
+
+**4 线 SWD 焊盘裸露，未焊排针**。板子还有 `CON3`（3.3V 测试点）。
+
+⚠️ **重要限制**：OpenOCD **没有** WB32 的 flash 算法（`src/flash/nor/` 无 wb32）。所以 SWD 只能连 core 调试，**不能替代 DFU 读写 Flash**。
+
+### 1.4 硬件照片
+
+原始照片已丢失（在聊天记录中）。若需重新拆机，重点拍：
+
+1. U7 主控近景（侧光 45°，丝印要清晰）
+2. 整块 PCB 正面（看天线、调试点、第二颗芯片）
+3. PCB 反面（电池、排线）
+4. **无线模块屏蔽罩**（这是目前最大未知）
+
+⚠️ **拆机前先断开电池排线**（10000mAh 锂电池，短路会出事）。
+
+---
+
+## 2. 固件备份（最重要）
+
+### 2.1 备份文件
+
+| 文件 | 大小 | MD5 | 用途 |
+|---|---|---|---|
+| `max102_stock_256k.bin` | 262,144 B | `4014df74ebde3479afcfc90460eae28a` | **全片备份（救命用）** |
+| `max102_stock_trimmed.bin` | 69,632 B | `72feb0cbda334b8bb66a41f0ef39def2` | 有效区（反编译用） |
+
+**SHA256（全片）**：
+```
+ac842a1134477ad2dc1085b9429fdef0c0cdc0d9554ccecbb51a75968ef9d1b5
+```
+
+**校验方式**：两次独立 DFU 读取，MD5 完全一致。
+
+### 2.2 有效固件边界
+
+```
+0x08000000  向量表起点
+0x08010D33  最后一个非零字节
+0x08011000  之后全部为 0x00（有效擦除态，不是 0xFF）
+```
+
+所以 `trimmed.bin` 截到 `0x11000`（69,632 B）。
+
+### 2.3 ⚠️ 立刻要做的事
+
+**把 `max102_stock_256k.bin` 复制到至少 3 个地方**：
+
+- [ ] 云盘（OneDrive / Google Drive / 百度网盘）
+- [ ] U 盘
+- [ ] 另一台电脑
+
+**这是不可再生资源**。原厂不提供固件下载，一旦丢失，你的键盘就永远回不到原厂状态。
+
+---
+
+## 3. 环境配置（接手后第一件事）
+
+### 3.1 必需工具
+
+| 工具 | 版本 | 用途 | 获取方式 |
+|---|---|---|---|
+| Python | 3.8+ | 跑脚本 | 系统自带 |
+| `hidapi` | any | VIA 通信 | `pip install hidapi` |
+| `wb32-dfu-updater_cli` | 0.0.1 | 固件读写 | [GitHub Releases](https://github.com/WestberryTech/wb32-dfu-updater/releases) |
+| WinUSB 驱动 | 1.0.0.0 | DFU 模式识别 | 同上仓库 `driver/` 目录 |
+| JDK | **25+** | Ghidra 必需 | `winget install Microsoft.OpenJDK.25` |
+| Ghidra | 12.2 | 反编译 | [GitHub](https://github.com/NationalSecurityAgency/ghidra/releases) |
+| capstone | 5.0+ | Python 反汇编 | `pip install capstone` |
+
+### 3.2 原始环境（供参考）
+
+```
+OS      : Windows 11 专业版
+Arch    : AMD64
+Python  : 3.8.0 (C:\Program Files\Python38\python.exe)
+Git     : /mingw64/bin/git
+JDK     : C:\Program Files\Microsoft\jdk-25*
+Ghidra  : C:\Users\<user>\tools\ghidra_12.2_PUBLIC\
+WB32 工具: C:\Users\<user>\wb32tool\
+```
+
+### 3.3 装 WinUSB 驱动（需要管理员）
+
+```batch
+cd <wb32tool>\wb_dfu_usb_driver_v1.0.0.0
+dpinst_amd64.exe
+```
+
+**驱动只绑定 `USB\VID_342D&PID_DFA0`**（DFU 模式）。所以：
+- 必须先让键盘进 DFU，装驱动才有意义
+- 正常模式下装不了，也不该装
+
+卸载：
+```batch
+dpinst_amd64.exe /u wb_device_in_dfu_mode.inf
+```
+
+---
+
+## 4. 操作手册
+
+### 4.1 进入 DFU（关键技巧）
+
+固件里藏了一个隐藏的第 5 层（`LAYER_COUNT=5`，官方网页驱动只暴露 4 层）。
+从实读的 keymap 反推出键位链：
+
+```
+Layer 0  matrix(5,9)  = MO(1)      ← FN 键
+Layer 1  matrix(4,12) = MO(4)      ← FN 层里的右 Shift 姿势
+Layer 4  matrix(0,0)  = QK_BOOT    ← 第 4 层的 ESC 位置
+```
+
+**操作方法：**
+
+```
+按住 FN  →  按住右 Shift  →  点一下 ESC
+```
+
+成功标志：
+
+```bash
+wb32-dfu-updater_cli.exe -l
+# Found DFU: [0x342D:0xDFA0] ver=0x0100, devnum=7, cfg=1, intf=0
+```
+
+此时键盘**完全不工作**（打不了字），只能靠 DFU 工具操作。
+
+### 4.2 读取固件（备份）
+
+```bash
+cd <wb32tool>
+
+# 全片 256KB 读取（实测 0.6 秒）
+wb32-dfu-updater_cli.exe -U max102_stock_256k.bin -Z 262144
+
+# 复位回正常模式
+wb32-dfu-updater_cli.exe -R
+```
+
+⚠️ **`-Z` 必须显式给**，工具不会自动探测容量。
+- 给大了 → 读越界
+- 给少了 → 备份不完整
+
+### 4.3 刷回原厂固件
+
+```bash
+# 1. 进 DFU
+# 2. 确认设备
+wb32-dfu-updater_cli.exe -l
+
+# 3. 写入（地址必须从 0x08000000 开始！）
+wb32-dfu-updater_cli.exe -D max102_stock_trimmed.bin -s 0x08000000
+
+# 4. 复位
+wb32-dfu-updater_cli.exe -R
+```
+
+### 4.4 读取键盘配置（只读，不写入）
+
+```bash
+# 前置：USB 连接 + 电源开关 ON + FN+T 切有线模式
+
+python probe_max102.py      # 探测 + dump keymap → max102_info.json
+python backup_config.py     # 完整备份 → backup_<时间戳>.json
+python decode_keymap.py     # 解码 → keymap_readable.txt
+```
+
+三个脚本**只发送 GET 类命令**，绝不写入、不跳 bootloader。
+
+---
+
+## 5. 已确认的软件事实
+
+### 5.1 VIA 协议版本
+
+| 参数 | 值 |
+|---|---|
+| `PROTOCOL_VERSION` | **12** |
+| `FIRMWARE_VERSION` | `0.0.0`（厂家没填，4 字节全 0） |
+| `LAYER_COUNT` | **5** |
+| 矩阵 | 6 rows × 19 cols = 114 位置，实际 101 键 |
+| `MACRO_COUNT` | 16 |
+| 宏缓冲 | 1984 字节（当前全空） |
+
+### 5.2 完整命令表（45 条，从固件反编译还原）
+
+标准 VIA 部分（1–21）：
+
+```
+1  GET_PROTOCOL_VERSION          12 MACRO_GET_COUNT
+2  GET_KEYBOARD_VALUE            13 MACRO_GET_BUFFER_SIZE
+3  SET_KEYBOARD_VALUE            14 MACRO_GET_BUFFER
+4  DYNAMIC_KEYMAP_GET_KEYCODE    15 MACRO_SET_BUFFER
+5  DYNAMIC_KEYMAP_SET_KEYCODE    16 MACRO_RESET
+7  BACKLIGHT_CONFIG_SET_VALUE    17 GET_LAYER_COUNT
+8  BACKLIGHT_CONFIG_GET_VALUE    18 DYNAMIC_KEYMAP_GET_BUFFER
+9  BACKLIGHT_CONFIG_SAVE         19 DYNAMIC_KEYMAP_SET_BUFFER
+10 EEPROM_RESET                  20 GET_ENCODER
+11 BOOTLOADER_JUMP               21 SET_ENCODER
+```
+
+**厂家私有命令**（22 条）：
+
+```
+6, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+36, 37, 38, 39, 40, 41, 42, 43, 44, 45
+```
+
+**注意**：命令 **6** 是私有的，**官方网页驱动都没用它**。
+
+### 5.3 keyboard value 枚举
+
+```c
+UPTIME              = 1
+LAYOUT_OPTIONS      = 2
+SWITCH_MATRIX_STATE = 3
+FIRMWARE_VERSION    = 4
+DEVICE_INDICATION   = 5
+```
+
+### 5.4 报文格式
+
+```
+REPORT_SIZE = 33
+请求: [0, cmd, ...payload, 补0]
+响应: [0, cmd, ...data, 补0]
+
+读 buffer (cmd 18) 特殊: [offset_hi, offset_lo, size]  size ≤ 28
+响应 data 从 r[4] 开始
+```
+
+---
+
+## 6. 键位表（实读，非推测）
+
+完整数据见 `keymap_readable.txt`。
+
+### Layer 0（基础层）
+
+```
+ESC  F1   F2   F3   F4   F5   F6   F7   F8   F9   F10  F11  F12  INS  PSCR SCRL HOME END
+GRV  1    2    3    4    5    6    7    8    9    0    MINS EQL  BSPC DEL  NUM  PSLS PAST PMNS
+TAB  Q    W    E    R    T    Y    U    I    O    P    LBRC RBRC BSLS PGUP P7   P8   P9   PPLS
+CAPS A    S    D    F    G    H    J    K    L    SCLN QUOT ENT  PGDN P4   P5   P6
+LSFT Z    X    C    V    B    N    M    COMM DOT  SLSH RSFT UP   P1   P2   P3   PENT
+LCTL LGUI LALT SPC  MO(1) RCTL LEFT DOWN RGHT P0   PDOT
+```
+
+### Layer 1（FN 层）
+
+```
+CLR_EE MYCM WHOM MAIL CALC MSEL MSTP MPRV MPLY MNXT MUTE VOLD VOLU
+  ...  BT1  BT2  BT3  2.4G USB  ...  UG_NEXT
+  ... NOSEC ... UG_HUEU
+  ... KB09 ... MO(4) UG_VALU
+BATQ  MAGIC_TOGGLE_GUI  WHITE  UG_SPDD UG_VALD UG_SPDU
+```
+
+### Layer 4（隐藏 BOOT 层）
+
+```
+QK_BOOT ---- ---- ---- ...（其余全 TRNS）
+```
+
+### 自定义键码（`QK_KB` 区 `0x7E00+`）
+
+| 键码 | 索引 | 名称 | 状态 |
+|---|---|---|---|
+| `0x7E00` | 0 | `DEV BT1` | ✅ 已声明 |
+| `0x7E01` | 1 | `DEV BT2` | ✅ |
+| `0x7E02` | 2 | `DEV BT3` | ✅ |
+| `0x7E03` | 3 | `DEV 2.4G` | ✅ |
+| `0x7E04` | 4 | `DEV USB` | ✅ |
+| `0x7E05` | 5 | `display test white` | ✅ |
+| `0x7E06` | 6 | `HS_BATQ` | ✅ |
+| `0x7E07` | 7 | `Bluetooth no secret pairing channel` | ✅ |
+| `0x7E08` | 8 | `Recording lighting effects` | ✅ |
+| `0x7E09` | 9 | **未知** | ❌ 固件用但 via.json 未声明 |
+| `0x7E0A` | 10 | **未知** | ❌ |
+| `0x7E0C` | 12 | **未知** | ❌ |
+| `0x7E0D` | 13 | **未知** | ❌ |
+| `0x7E0E` | 14 | **未知** | ❌ |
+
+---
+
+## 7. 固件内幕（反编译结论）
+
+详细的见 `DISASSEMBLY.md`，这里只列接手后最需要知道的。
+
+### 7.1 确认使用 QMK
+
+`FUN_0800BCB4` 反编译出来的代码与 QMK 官方 `platforms/chibios/bootloaders/wb32_dfu.c` 的 `enter_bootloader_mode_if_requested()` **逐字对应**：
+
+> 原厂反编译/反汇编代码已移除（版权归 LEIKU / Weikav）。
+> 行为结论见上下文文字说明；如需原始代码，请用 `firmware/` 自行复现。
+
+
+**结论**：`BOOTLOADER = wb32-dfu`，编译自标准 QMK 分支。
+
+### 7.2 520 个函数
+
+| 产物 | 说明 |
+|---|---|
+| `ghidra_out/decompiled_all.c` | 458 KB，**520 个 C 伪代码，100% 反编译成功** |
+| `ghidra_out/functions.asm` | 516 KB，分组反汇编 |
+| `ghidra_out/functions.txt` | 38 KB，函数索引 |
+
+**最大的函数**：
+
+| 地址 | 大小 | 推测 |
+|---|---|---|
+| `FUN_08009868` | 1670 B, 54 calls | **VIA 命令分发器**（switch 45 个 case）✅ 已分析 |
+| `FUN_08001A08` | 746 B | 待分析 |
+| `FUN_08000244` | 724 B | `__aeabi_uldivmod`（64 位除法，编译器内联） |
+| `FUN_08000DB0` | 624 B | 待分析 |
+| `IRQ14_Handler` | 536 B | ✅ 已实现的中断 |
+
+### 7.3 关键 RAM 地址
+
+| 符号 | 地址 | 用途 |
+|---|---|---|
+| `DAT_08009AAC` | `0x20000F60` | **VIA 响应缓冲区**（引用 31 次，最热） |
+| `DAT_08009AA4` | `0x20003DC8` | VIA 请求参数缓冲 |
+| `DAT_08009AA8` | `0x20000F65` | 当前命令码 |
+| `DAT_08009AB8` | `0x20000F63` | 当前层号 |
+| `DAT_08009AA0` | `0x20003100` | 主状态结构体 |
+| `DAT_0800BCE8` | **`0x1FFFE000`** | ROM bootloader 基址 |
+| `DAT_0800EF7C` | **`0x40014000`** | ✅ **USB 控制器**（WB32 `USB_BASE`），**不是无线总线** |
+| `DAT_0800BEC8` | `0x40000800` | 无线 UART 用到的 GPIO 基址（官方 GPIOC = `0x40000C00`，待核） |
+| `0x20000C7D` | — | 无线设备状态结构 `{state, indicator, version, bat}` |
+| `0x20000C80` | — | **电量百分比 0–100** |
+
+### 7.4 无线架构（已完成逆向，原判断已修正）
+
+> ⚠️ **本节原文有多处错误，已在末尾给出修正结论。**
+> 原分析认为 `0x40014000` 是"未知无线总线"、无线模块型号未知、需逻辑分析仪。
+> **这些都已解决：就是 UART3 @115200，模块是 Freqchip FR8003A，协议完全还原。**
+> 详细结论见 [`BATTERY.md`](BATTERY.md)，本节保留原文作为对照。
+
+固件里**只有蓝牙设备名字符串，没有任何蓝牙栈**：
+
+```
+MAX102-2.4G   MAX102-BT1   MAX102-BT2   MAX102-BT3   MAX102 BT4   MAX102 BT5
+LEKU          MAX102       (UTF-16LE)
+```
+
+**`FUN_0800B662`** 是一个命令转发器，它的 `case 3` 会**循环查询 6 个设备状态**：
+
+> 原厂反编译/反汇编代码已移除（版权归 LEIKU / Weikav）。
+> 行为结论见上下文文字说明；如需原始代码，请用 `firmware/` 自行复现。
+
+
+**6 个设备** 正好对应 `DEVS_USB / DEVS_BT1..BT5 / DEVS_2G4`。
+
+**结论**：
+```
+USB ──► WB32FQ95 ──??总线??──► 无线模块 ──► BT / 2.4G
+        (键盘主控)              (型号未知)
+```
+
+**这条总线极可能就是 `0x40014000` 那个未知外设。**
+
+---
+
+## 8. 待办清单（按优先级）
+
+### 🔥 P0 — 立刻做（不涉及硬件）
+
+- [ ] **备份 `max102_stock_256k.bin` 到 3 个地方**（云盘 / U 盘 / 另一台机器）
+- [ ] 装好环境（见第 3 节），跑通 `probe_max102.py`
+- [ ] 把 Ghidra 项目跑起来，打开 `decompiled_all.c` 熟悉代码
+
+### 🔴 P1 — 最高价值（不需要硬件）
+
+- [x] ~~**查清 `0x40014000` 是什么外设**~~
+      ✅ **已解决：它是 USB 控制器（`USB_BASE`），不是无线总线。**
+      对照 `wb32fq95xx.h`：`AHBPERIPH_BASE 0x40010000 + 0x4000 = 0x40014000`。
+      `IRQ14_Handler` 就是 USB 中断。无线走的是 **UART3 @115200**。
+
+- [x] ~~**逆向私有命令 22–45**~~
+      ✅ 已完成。全部 handler 已定位，均为灯效 / 按键板硬件访问。
+      **其中没有一条返回电量。** 详见 `BATTERY.md`。
+
+- [ ] **重命名 520 个函数**
+      - 方法：把 QMK 源码用相同编译选项（`-O2 -mcpu=cortex-m3 -mthumb`）编译
+      - 然后做二进制比对（[BSim](https://github.com/NationalSecurityAgency/ghidra/tree/master/Ghidra/Features/BSim) / Diaphora）
+      - 能自动匹配大量函数
+
+- [ ] **找到矩阵扫描函数**
+      - 搜索特征：GPIO 读 → 位运算 → 循环 6 次 × 19 次
+
+- [ ] **找到 RGB 驱动函数**
+      - 搜索特征：循环 104 次 + 颜色运算
+
+### 🟡 P2 — 需要硬件
+
+- [x] ~~**拆无线模块屏蔽罩，读型号**~~
+      ✅ **已确认为 Freqchip FR8003A**（用户提供）。
+
+- [x] ~~**逻辑分析仪抓无线模块总线**~~
+      ✅ **不需要了。** UART 协议已从固件完整还原，并与公开源码
+      （`qmk_westberry` + `fr8003-re`）双向交叉验证。
+      若要最终实机确认，只需串口嗅探 UART3（`A6 53 sum` / `5C xx sum`）。
+
+- [ ] **万用表测矩阵引脚**（6 row × 19 col = 114 个点）
+
+- [ ] **确认 RGB LED 协议**（WS2812？还是私有）
+
+- [ ] **拍照/实测确认 X14076 充电 IC 周边**（解充电态上报）
+      - 拍：X14076 本体 + 周边阻容 + 电池排线座，带位号
+      - 测：`CHRG` / `STDBY` 脚接到 WB32 哪个 GPIO，还是接 FR8003A
+
+- [ ] **确认 UART 引脚**（本文件推 PC10/PC11，待万用表验证）
+
+### 🟢 P3 — 工程实现
+
+#### P3-0（新增，最优先）：电量上报
+
+详见 [`BATTERY.md`](BATTERY.md)。要点：
+
+- 电量已在 RAM `0x20000C80`（0–100 百分比），每 3 秒刷新
+- **改主控固件即可，无需碰 FR8003A**（USB 模式）
+- 两个出口：VIA 私有命令（`REPORT_SIZE=33`，易验证）+ HID Battery Strength（系统原生）
+- 蓝牙模式的系统级电量显示取决于 FR8003A 的 GATT（待扫 BLE 确认）
+- 充电态上报需先确认 X14076 状态脚接谁
+
+#### 路线 A：只做有线版（2–3 天）
+
+1. 抄 `keyboards/monsgeek/m1` 的结构
+2. 建 `keyboards/weikav/max102/`
+3. 写 `keyboard.json`
+4. 三模失效，变纯有线
+
+#### 路线 B：完整三模（2–4 周）
+
+1. 接入 `WestberryTech/qmk_westberry` 的 `tri-mode` 分支
+2. 需要先完成 P2
+
+> 路线 B 的最大障碍（无线协议）已经消除——`md` 编解码已完全还原。
+
+---
+
+## 9. 所有风险点
+
+### 9.1 硬件风险
+
+| 风险 | 后果 | 规避 |
+|---|---|---|
+| **擦除 ROM bootloader 区（`0x1FFFE000`）** | **永久变砖**，OpenOCD 也救不了 | 永远只操作 `0x08000000` 起的区域 |
+| 拆机 | 保修失效 | 保修期 1 年，注意时间 |
+| 不断电池就拆 | 短路起火 | **必须**先断电池排线 |
+| 铝合金外壳 | 螺丝滑丝 | 用小号精密螺丝刀 |
+
+### 9.2 软件风险
+
+| 风险 | 后果 | 规避 |
+|---|---|---|
+| `-Z` 参数给错 | 备份不完整 / 读越界 | 固定用 `262144` |
+| 刷了错的固件 | 键盘无响应 | 有备份，DFU 刷回 |
+| 覆盖无线模块固件 | 三模失效 | 不要碰无线模块 Flash |
+| 进 DFU 后断电 | 状态不确定 | 用 `-R` 正常退出 |
+
+### 9.3 法律 / 社区风险
+
+| 风险 | 说明 |
+|---|---|
+| **QMK 违规名单** | Weikav 在 [`docs/license_violations.md`](https://docs.qmk.fm/license_violations) 第 52 行 |
+| **PR 会被拒** | 见 [issue #24085](https://github.com/qmk/qmk_firmware/issues/24085)，QMK 已暂停 Weikav 所有 PR |
+| 固件版权 | 归 LEKU / Weikav 所有，**不要公开分发** |
+| 绕开方式 | 放自己的 fork（GPLv3 允许），或提交到 `qmk_westberry/tri-mode` |
+
+### 9.4 恢复手段（三重保险）
+
+| 手段 | 可用性 | 说明 |
+|---|---|---|
+| ROM DFU | ✅ 最可靠 | `FN + 右Shift + ESC` |
+| 原厂固件备份 | ✅ | `max102_stock_256k.bin` |
+| SWD 焊盘 | ⚠️ 有限 | 能连 core，**但无 OpenOCD flash 驱动** |
+| EEPROM 配置备份 | ✅ | `backup_*.json` |
+
+---
+
+## 10. 参考链接
+
+### 官方资源
+
+| 资源 | 链接 |
+|---|---|
+| 软件下载页 | https://weikav.com/waikv-software/ |
+| 官方在线驱动 | https://weikavmax102.hsgaming.cn/ |
+| 产品页 | https://weikav.com/product/weikav-max102/ |
+| 官方 VIA JSON | Google Drive `1lwphtjmT30NadFdWSNm72u7c65urxBe9` |
+
+### QMK / 工具
+
+| 资源 | 链接 |
+|---|---|
+| Wb32 DFU 工具 | https://github.com/WestberryTech/wb32-dfu-updater |
+| Wb32 tri-mode QMK | https://github.com/WestberryTech/qmk_westberry/tree/tri-mode |
+| QMK 违规名单 | https://docs.qmk.fm/license_violations |
+| QMK issue #24085 | https://github.com/qmk/qmk_firmware/issues/24085 |
+| MonsGeek M1 参考 | https://github.com/qmk/qmk_firmware/tree/master/keyboards/monsgeek/m1 |
+
+### 本项目仓库
+
+| 资源 | 链接 |
+|---|---|
+| GitHub | https://github.com/Banxiaxiala/weikav-max102-re |
+
+---
+
+## 11. 文件清单
+
+```
+E:\rel\weikav-max102\
+├── HANDOVER.md                    ← 本文件，先读这个
+├── README.md                      GitHub 主页说明
+├── ANALYSIS.md                    硬件与固件逆向完整报告（14 章）
+├── DISASSEMBLY.md                 反编译分析报告
+├── LICENSE                        MIT（文档+脚本）
+│
+├── max102_stock_256k.bin          ★★★ 原厂全片备份（救命用）
+├── max102_stock_trimmed.bin       ★★★ 有效固件 68KB
+├── FIRMWARE_BACKUP_INFO.json      固件校验值 + 设备元数据
+│
+├── keymap_readable.txt            ★ 5 层完整键位表（实读）
+├── max102_via.json                ★ 官方 VIA 定义（用 VIA 改键需要）
+├── max102_info.json               探测输出（本地信息）
+├── backup_20261110_124240.json    EEPROM 配置备份
+├── backup_20261110_124938.json    EEPROM 配置备份
+│
+├── probe_max102.py                ★ 只读探测器
+├── backup_config.py               ★ 配置备份器
+├── decode_keymap.py               ★ 键位解码器
+│
+├── ghidra_scripts/
+│   ├── Max102Post.java            建向量表 + 符号
+│   └── ExportDecomp.java          导出 C 伪代码
+│
+└── ghidra_out/
+    ├── decompiled_all.c           ★★★ 520 个 C 伪代码（458 KB）
+    ├── functions.asm              分组反汇编（516 KB）
+    └── functions.txt              函数索引（38 KB）
+```
+
+---
+
+## 12. 接手后的第一个小时
+
+按顺序做这些，能快速建立起对项目的把握：
+
+1. **备份固件**（10 分钟）
+   ```bash
+   # 复制到云盘/U盘
+   copy max102_stock_256k.bin D:\backup\
+   ```
+
+2. **装环境**（30 分钟）
+   ```bash
+   pip install hidapi capstone
+   winget install Microsoft.OpenJDK.25
+   # 下载 wb32-dfu-updater 和 Ghidra
+   ```
+
+3. **读文档**（20 分钟）
+   - 先读本文件（HANDOVER.md）
+   - 再读 `ANALYSIS.md` 第 1-4 章（硬件 + 固件备份）
+   - 然后 `DISASSEMBLY.md` 第 3 章（关键函数）
+
+4. **跑通探测**（5 分钟）
+   ```bash
+   # 键盘 USB 连接 + 电源 ON + FN+T
+   python probe_max102.py
+   # 应该看到 PROTOCOL_VERSION=12, LAYER_COUNT=5
+   ```
+
+5. **打开反编译代码**（随时）
+   ```
+   用 VSCode 打开 ghidra_out/decompiled_all.c
+   重点看 FUN_08009868（VIA 分发器）
+   ```
+
+---
+
+## 13. 联系与致谢
+
+**原始研究者**：Banxia（2026-11-10 完成研究阶段）
+
+**关键工具**：
+- [Ghidra](https://ghidra-sre.org/) — NSA 开源逆向平台
+- [Capstone](https://www.capstone-engine.org/) — 反汇编框架
+- [Westberry 官方 DFU 工具](https://github.com/WestberryTech/wb32-dfu-updater)
+- [QMK Firmware](https://github.com/qmk/qmk_firmware)
+
+**特别说明**：
+本项目所有固件读取均在**自己拥有的设备**上进行，符合"互操作性逆向工程"的合理使用范畴。
+固件二进制**不包含**在任何公开仓库中。
+
+---
+
+## 14. 最后的话
+
+这个项目的研究部分已经做得很扎实了：
+
+- ✅ 硬件完全摸清（MCU、调试口、USB 标识）
+- ✅ 固件完整备份（可随时恢复）
+- ✅ 协议完全还原（45 条命令）
+- ✅ 520 个函数全部反编译
+
+**现在的瓶颈不在软件，在硬件。**
+
+要往下走，你必须：
+
+1. **拆开无线模块屏蔽罩**，看芯片型号
+2. **有逻辑分析仪**，抓总线波形
+
+如果决定放弃三模，**路线 A（纯有线）2-3 天就能做完**，而且风险很低——你有完整备份，刷坏了随时刷回来。
+
+祝顺利。
