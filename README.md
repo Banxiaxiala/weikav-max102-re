@@ -10,7 +10,10 @@
 > 本项目通过反编译原厂固件，**在原厂固件基础上做过最小二进制修改**，让键盘能把电量
 > 告诉电脑。原厂 19 条 VIA 命令**一个字节都没动**。
 
-![电量通路](assets/01-电量通路.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/01-电量通路-dark.png">
+  <img alt="电量通路" src="assets/01-电量通路-light.png" width="780">
+</picture>
 
 ---
 
@@ -56,7 +59,10 @@ dist/                   打包好的 Windows 程序
 
 这是本仓库最重要的部分。**两者只差一个 VIA 命令。**
 
-![固件差异](assets/02-固件差异.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/02-固件差异-dark.png">
+  <img alt="固件差异" src="assets/02-固件差异-light.png" width="780">
+</picture>
 
 ### 一张表看清区别
 
@@ -126,7 +132,10 @@ dist/                   打包好的 Windows 程序
   （`wb32-dfu-updater_cli.exe`）
 - **USB 线**（刷机必须插线，2.4G / 蓝牙都刷不了）
 
-![刷机流程](assets/05-刷机流程.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/05-刷机流程-dark.png">
+  <img alt="刷机流程" src="assets/05-刷机流程-light.png" width="780">
+</picture>
 
 ### 步骤
 
@@ -168,7 +177,10 @@ wb32-dfu-updater_cli.exe -t WB32 -U my_backup.bin
 
 ### 2.4G / USB：走 VIA `cmd 20`
 
-![cmd20 帧格式](assets/03-cmd20-帧格式.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/03-cmd20-帧格式-dark.png">
+  <img alt="cmd20 帧格式" src="assets/03-cmd20-帧格式-light.png" width="780">
+</picture>
 
 刷了补丁之后，键盘会响应：
 
@@ -188,7 +200,10 @@ wb32-dfu-updater_cli.exe -t WB32 -U my_backup.bin
 | `[6]` | 无线模块版本 | 当前为 `1` |
 | `[7]` | 指示灯位 | bit0 = Caps Lock |
 
-![指示灯位](assets/04-指示灯位.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/04-指示灯位-dark.png">
+  <img alt="指示灯位" src="assets/04-指示灯位-light.png" width="780">
+</picture>
 
 **实测样本**（2.4G 下）：
 
