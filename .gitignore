@@ -1,5 +1,5 @@
 # ===== 注意：本项目刻意收录固件与 via.json =====
-# 见 docs/10-版权声明.md。不要用 *.bin 通配符把它们排除掉。
+# 见 docs/11-版权声明.md。不要用 *.bin 通配符把它们排除掉。
 
 # ===== Python =====
 __pycache__/
@@ -48,6 +48,13 @@ functions.txt
 *.sr
 *.logicdata
 *.pcapng
+
+# ===== 第三方工具（只作本地参考，不随仓库分发）=====
+# 例：WirelessDeviceBatteryMonitor / mouse-battery-gpui（31MB，别人写的）
+# 只屏蔽根目录与本仓工具目录里的二进制，避免误伤源码
+/*.exe
+/*.msi
+/*.dll
 
 # ===== 官方资料包（厂家发布，保留以便溯源）=====
 MAX102json.zip

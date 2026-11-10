@@ -365,7 +365,7 @@ def print_verdict(enum_ok, probe_ok, battery_ok):
         print("\n  ✗ 接收器不透传 vendor HID（VIA cmd 1 无响应）")
         print("    → 2.4G 下无法通过 VIA 端口读电量")
         print("    → 备选方案：改 HID 描述符加 Battery Strength，")
-        print("      让 dongle 当标准 HID 转发（见 docs/07-电量补丁方案.md 路线 A-2）")
+        print("      让 dongle 当标准 HID 转发（见 docs/08-电量补丁方案.md 路线 A-2）")
         return
     if not battery_ok:
         print("\n  △ VIA 通了，但电量无效")
