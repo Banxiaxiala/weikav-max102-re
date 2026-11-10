@@ -197,12 +197,13 @@ for (let l = 0; l < n.length; l += i) {
 |---|---|
 | `tools/patch_battery.py` | 生成电量补丁固件 |
 | `tools/read_battery.py` | 命令行读电量 |
-| `D:\dist\max102-via\index.html` | **本地 WebHID 工具**：改键 + 电量 + 灯效 |
-| `D:\dist\max102-via\device.json` | 设备定义（含灯效通道） |
+| `tools/probe_24g.py` | 2.4G / 接收器通道下探活并读电量 |
+| **`web/index.html`** | **本地 WebHID 工具：改键 + 电量 + 灯效**（见 [`web/README.md`](../web/README.md)） |
+| **`web/device.json`** | 设备定义（矩阵 / 布局 / 灯效通道） |
 
 本地工具相比官方 `usevia.app` 的优势：
 
-| 项 | usevia.app | 本地工具 |
+| 项 | usevia.app | 本地工具（`web/`） |
 |---|---|---|
 | 需要联网 | ✅ 需要 | ❌ 不需要 |
 | 显示电量 | ❌ 不支持 | ✅ |

@@ -1,0 +1,10 @@
+# 统一换行：文本文件一律用 LF 进仓库、LF 检出
+# （避免 CRLF/LF 混用——之前就有 Windows 路径里的 "\r" 被当成回车，
+#   把 `E:\rel\...` 搞成断行的事故）
+* text=auto eol=lf
+
+# 明确二进制，不做任何文本转换
+*.bin binary
+*.zip binary
+*.png binary
+*.jpg binary

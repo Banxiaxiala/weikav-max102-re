@@ -45,6 +45,7 @@ MAX102 Hardware RE contributors:
   - All Markdown documentation (*.md)
   - Python tools        (tools/*.py)
   - Ghidra scripts      (scripts/*.java)
+  - Local web tool      (web/*)
 
 It does NOT apply to the following, which remain the property of their
 respective owners:
@@ -55,19 +56,20 @@ respective owners:
                                    BUT the manufacturer never published the
                                    corresponding source code. This repository
                                    therefore CANNOT satisfy GPL-2.0 section 3.
-                                   See NOTICE.md section 2.
+                                   See docs/10-版权声明.md section 2.
 
   - tools/max102_via.json       -- vendor-supplied VIA definition data,
                                    (C) LEKU / Weikav.
-                                   Licensing status unknown. See NOTICE.md
+                                   Licensing status unknown. See docs/10-版权声明.md
                                    section 3.
 
 These are included for interoperability, research and device-recovery
-purposes only. See NOTICE.md for full terms, takedown policy and
+purposes only. See docs/10-版权声明.md for full terms, takedown policy and
 usage restrictions.
 
 --------------------------------------------------------------------------------
-以上 MIT 许可证仅适用于本项目贡献者原创的文档、Python 工具与 Ghidra 脚本。
+以上 MIT 许可证仅适用于本项目贡献者原创的文档、Python 工具、Ghidra 脚本
+与本地 Web 工具（`web/`）。
 
 以下内容不在 MIT 覆盖范围内：
 
@@ -75,10 +77,10 @@ usage restrictions.
                             作为 QMK 衍生作品推定为 GPL-2.0，
                             但厂商从未公开对应源码，
                             因此本仓库无法满足 GPL-2.0 第 3 条要求。
-                            见 NOTICE.md 第 2 节。
+                            见 docs/10-版权声明.md 第 2 节。
 
   - tools/max102_via.json   厂商 VIA 定义数据，(C) LEKU / Weikav，
-                            许可状态不明。见 NOTICE.md 第 3 节。
+                            许可状态不明。见 docs/10-版权声明.md 第 3 节。
 
 上述文件仅为互操作性研究、分析与设备恢复目的收录。
 ================================================================================
