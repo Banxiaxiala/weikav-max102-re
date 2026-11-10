@@ -105,22 +105,12 @@ python tools/backup_config.py     # → temp/backup_<时间戳>.json
 python tools/decode_keymap.py     # → tools/keymap_readable.txt
 ```
 
-> 临时产物（探测输出、配置备份、Ghidra 反编译结果）统一落在 `temp/`，
-> 该目录已在 `.gitignore` 中排除。
+> 产物位置：`temp/max102_info.json`（探测）、`temp/backup_<时间戳>.json`（备份）、
+> `tools/keymap_readable.txt`（可读键位表）。临时产物统一落在 `temp/`，
+> 已在 `.gitignore` 中排除。
 
 三个脚本**只发 GET 类命令**，不写 EEPROM、不跳 bootloader。源码可逐行审计。
 脚本内部用绝对路径定位仓库，**任意目录下运行都可以**。
-
-> 产物位置：`temp/max102_info.json`（探测）、`temp/backup_<时间戳>.json`（备份）、
-> `tools/keymap_readable.txt`（可读键位表）。`temp/` 不进 git。
-
-### 读电量（需先刷电量补丁，见 PATCH_PLAN）
-
-```bash
-py -3.13 tools/read_battery.py          # 读一次
-py -3.13 tools/read_battery.py -w 2     # 每 2 秒刷新
-py -3.13 tools/read_battery.py --json   # 给其他程序用
-```
 
 预期输出：
 
@@ -132,6 +122,14 @@ LAYER_COUNT      : 5
   layer 0: 228 bytes, 非零键码 101 个
 MACRO_COUNT      : 16
 MACRO_BUF_SIZE   : 1984
+```
+
+### 读电量（需先刷电量补丁，见 PATCH_PLAN）
+
+```bash
+py -3.13 tools/read_battery.py          # 读一次
+py -3.13 tools/read_battery.py -w 2     # 每 2 秒刷新
+py -3.13 tools/read_battery.py --json   # 给其他程序用
 ```
 
 ### 固件备份（先做这个，再谈其他）

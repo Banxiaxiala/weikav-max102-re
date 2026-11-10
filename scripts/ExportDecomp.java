@@ -13,7 +13,7 @@ public class ExportDecomp extends GhidraScript {
 
     @Override
     public void run() throws Exception {
-        String outDir = System.getProperty("ghidra.out", "./ghidra_out");
+        String outDir = System.getProperty("ghidra.out", "./temp/ghidra_out");
         new File(outDir).mkdirs();
 
         FunctionManager fm = currentProgram.getFunctionManager();
