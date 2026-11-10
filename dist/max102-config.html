@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>MAX102 本地配置工具 (bundle)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#14161a; --panel:#1d2027; --panel2:#252932; --line:#333844;
+  --fg:#e6e8ee; --dim:#8b93a7; --accent:#4f9cf9; --accent2:#2dd4a7;
+  --warn:#f5a524; --err:#f2617a;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:14px/1.5 -apple-system,"Segoe UI",system-ui,"Microsoft YaHei",sans-serif;
+}
+header{
+  display:flex;align-items:center;gap:16px;padding:14px 20px;
+  background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap;
+}
+h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.3px}
+.badge{
+  font-size:11px;padding:2px 8px;border-radius:99px;
+  background:var(--panel2);color:var(--dim);border:1px solid var(--line);
+}
+.badge.ok{color:var(--accent2);border-color:#2dd4a744}
+.badge.bad{color:var(--err);border-color:#f2617a44}
+.spacer{flex:1}
+button{
+  background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+  padding:7px 14px;border-radius:7px;cursor:pointer;font-size:13px;
+  transition:.15s;
+}
+button:hover:not(:disabled){background:#2f343f;border-color:#4a5160}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover:not(:disabled){background:#3f8ae8}
+button.danger{border-color:#f2617a55;color:var(--err)}
+
+main{
+  display:grid;
+  /* 侧栏固定宽度；主区占剩下的全部 */
+  grid-template-columns:260px minmax(0,1fr);
+  height:calc(100vh - 57px);
+}
+aside{
+  background:var(--panel);border-right:1px solid var(--line);
+  padding:16px;overflow-y:auto;
+}
+section.content{
+  padding:20px;
+  overflow:auto;
+  /* 内容不够宽时不撑出横向滚动 */
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:14px;margin-bottom:14px;
+}
+.panel h2{
+  font-size:12px;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--dim);margin:0 0 12px;font-weight:600;
+}
+
+/* 电量 */
+.battery-value{font-size:38px;font-weight:700;line-height:1.1;letter-spacing:-1px}
+.battery-value small{font-size:16px;color:var(--dim);font-weight:400}
+.battery-bar{
+  height:8px;background:var(--panel2);border-radius:99px;
+  overflow:hidden;margin:12px 0 10px;
+}
+.battery-fill{
+  height:100%;width:0;background:linear-gradient(90deg,#2dd4a7,#4f9cf9);
+  border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1);
+}
+.battery-fill.low{background:linear-gradient(90deg,#f2617a,#f5a524)}
+.kv{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0}
+.kv span:first-child{color:var(--dim)}
+.kv span:last-child{font-variant-numeric:tabular-nums}
+
+/* 键盘 */
+/* 键盘缩放工具条 */
+.kb-bar{
+  display:flex;align-items:center;gap:6px;margin-bottom:6px;
+  font-size:12px;color:var(--dim);
+}
+.kb-bar .kb-hint{margin-right:auto;font-size:11.5px;opacity:.75}
+.zoom-btn{
+  background:var(--panel2);border:1px solid var(--line);color:var(--fg);
+  width:26px;height:24px;border-radius:6px;cursor:pointer;font-size:14px;
+  line-height:1;padding:0;display:flex;align-items:center;justify-content:center;
+}
+.zoom-btn:hover{background:#2f343f;border-color:#4a5160}
+#zoomFit{width:auto;padding:0 9px;font-size:12px}
+.zoom-val{
+  min-width:42px;text-align:center;font-variant-numeric:tabular-nums;
+  color:var(--accent);font-size:12px;
+}
+
+/* 键盘：容器自适应，键位按 UNIT 缩放 */
+.kb{
+  position:relative;
+  padding:18px 0;
+  /* 宽度交给 JS 算出的键盘实际宽，不强行撑满 */
+  margin:0 auto;
+  /* 极窄窗口下允许横向滚动，而不是把键压成一条缝 */
+  overflow-x:auto;
+  overflow-y:hidden;
+}
+.key{
+  position:absolute;display:flex;align-items:center;justify-content:center;
+  background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  font-size:11px;color:var(--fg);cursor:pointer;user-select:none;
+  transition:.1s;overflow:hidden;text-align:center;line-height:1.15;
+  padding:2px 3px;
+  font-size:var(--key-font, 11px);
+}
+.key:hover{border-color:var(--accent);background:#2c3442}
+.key.active{border-color:var(--accent);box-shadow:0 0 0 2px #4f9cf955}
+.key.changed{
+  background:#1e3a34;border-color:var(--accent2);color:var(--accent2);
+}
+.key.absent{background:transparent;border:1px dashed #33384444;color:#444}
+.key .lbl{font-size:var(--key-font,10.5px);word-break:break-word;overflow-wrap:anywhere}
+
+/* 层 */
+.layer-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.layer-tab{
+  padding:6px 13px;border-radius:7px;background:var(--panel2);
+  border:1px solid var(--line);cursor:pointer;font-size:12.5px;
+}
+.layer-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* 灯效控件 */
+.row{display:flex;align-items:center;gap:8px}
+.row label{color:var(--dim);font-size:12px;width:38px;flex:none}
+.row input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.row .num{font-size:11.5px;color:var(--accent);min-width:34px;text-align:right;
+  font-variant-numeric:tabular-nums}
+.row select{
+  flex:1;min-width:0;padding:5px 8px;border-radius:6px;
+  background:var(--panel2);border:1px solid var(--line);
+  color:var(--fg);font-size:12px;
+}
+.row input[type=color]{
+  flex:1;min-width:0;height:28px;padding:2px;border-radius:6px;
+  background:var(--panel2);border:1px solid var(--line);cursor:pointer;
+}
+
+/* 弹窗 */
+.modal{
+  position:fixed;inset:0;background:#0009;backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;z-index:50;
+}
+.modal.show{display:flex}
+.modal-box{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  width:min(680px,92vw);max-height:82vh;display:flex;flex-direction:column;
+}
+.modal-head{
+  padding:14px 18px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;
+}
+.modal-head h3{margin:0;font-size:14px}
+.modal-body{padding:16px 18px;overflow-y:auto;flex:1}
+.modal-foot{
+  padding:12px 18px;border-top:1px solid var(--line);
+  display:flex;gap:10px;justify-content:flex-end;
+}
+.kc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.kc{
+  padding:7px 6px;border-radius:6px;background:var(--panel2);
+  border:1px solid var(--line);cursor:pointer;font-size:11.5px;
+  text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.kc:hover{border-color:var(--accent);background:#2c3442}
+.kc.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.kc-group{margin-bottom:14px}
+.kc-group h4{
+  font-size:11px;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.6px;margin:0 0 7px;font-weight:600;
+}
+input[type=text]{
+  width:100%;padding:8px 11px;border-radius:7px;background:var(--panel2);
+  border:1px solid var(--line);color:var(--fg);font-size:13px;
+}
+.log{
+  font:11.5px/1.6 ui-monospace,Consolas,monospace;color:var(--dim);
+  background:#12141a;border-radius:8px;padding:10px 12px;
+  max-height:160px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+}
+.log .er{color:var(--err)}
+.log .ok{color:var(--accent2)}
+.hint{font-size:12px;color:var(--dim);line-height:1.7}
+.hint code{
+  background:var(--panel2);padding:1px 5px;border-radius:4px;
+  font-size:11.5px;color:var(--accent);
+}
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+  padding:11px 20px;font-size:13px;opacity:0;transition:.3s;z-index:99;
+  box-shadow:0 8px 26px #0007;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:#2dd4a766;color:var(--accent2)}
+.toast.er{border-color:#f2617a66;color:var(--err)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MAX102 本地配置</h1>
+  <span class="badge" id="statusBadge">未连接</span>
+  <span class="spacer"></span>
+  <button id="btnConnect" class="primary">连接键盘</button>
+  <button id="btnReload" disabled>重读键位</button>
+  <button id="btnReset" class="danger" disabled>恢复默认</button>
+</header>
+
+<main>
+<aside>
+  <div class="panel">
+    <h2>电量</h2>
+    <div class="battery-value" id="batVal">--<small>%</small></div>
+    <div class="battery-bar"><div class="battery-fill" id="batFill"></div></div>
+    <div class="kv"><span>连接状态</span><span id="batState">--</span></div>
+    <div class="kv"><span>模块版本</span><span id="batVer">--</span></div>
+    <div class="kv"><span>指示灯</span><span id="batLed">--</span></div>
+  </div>
+
+  <div class="panel">
+    <h2>灯效</h2>
+    <div class="row">
+      <label>亮度</label>
+      <input type="range" id="rgbBright" min="0" max="255" value="128" disabled>
+      <span class="num" id="rgbBrightV">--</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>效果</label>
+      <select id="rgbEffect" disabled></select>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>速度</label>
+      <input type="range" id="rgbSpeed" min="0" max="255" value="128" disabled>
+      <span class="num" id="rgbSpeedV">--</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label>颜色</label>
+      <input type="color" id="rgbColor" value="#00ff88" disabled>
+      <span class="num" id="rgbColorV">--</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>操作</h2>
+    <div class="hint" style="margin-bottom:10px">
+      点击任意键位可重新映射。改动会立即写入键盘。
+    </div>
+    <button id="btnBoot" disabled style="width:100%">进入刷机模式 (DFU)</button>
+  </div>
+
+  <div class="panel">
+    <h2>日志</h2>
+    <div class="log" id="log"></div>
+  </div>
+</aside>
+
+<section class="content">
+  <div class="layer-tabs" id="layerTabs"></div>
+  <div class="kb-bar">
+    <span class="kb-hint">Ctrl + 滚轮可缩放</span>
+    <button class="zoom-btn" id="zoomOut" title="缩小">−</button>
+    <span class="zoom-val" id="zoomVal">100%</span>
+    <button class="zoom-btn" id="zoomIn" title="放大">+</button>
+    <button class="zoom-btn" id="zoomFit" title="恢复自适应">自适应</button>
+  </div>
+  <div class="kb" id="kb"></div>
+</section>
+</main>
+
+<!-- 键位选择弹窗 -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modalTitle">选择键位</h3>
+      <span class="spacer"></span>
+      <span class="badge" id="modalCur"></span>
+    </div>
+    <div class="modal-body">
+      <input type="text" id="kcSearch" placeholder="搜索键位名称...">
+      <div id="kcList" style="margin-top:14px"></div>
+    </div>
+    <div class="modal-foot">
+      <button id="btnCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* 打包时内联的设备定义（由 tools/build_bundle.py 生成） */
+window.DEVICE_JSON = {"name":"MAX102 (Patched)","vendorId":"0x342d","productId":"0xE537","matrix":{"rows":6,"cols":19},"layerCount":5,"reportSize":33,"viaCommand":{"getProtocolVersion":1,"getKeyboardValue":2,"setKeyboardValue":3,"dynamicKeymapGetKeycode":4,"dynamicKeymapSetKeycode":5,"getBattery":6,"backlightSetValue":7,"backlightGetValue":8,"backlightSave":9,"eepromReset":10,"bootloaderJump":11,"macroGetCount":12,"macroGetBufferSize":13,"macroGetBuffer":14,"macroSetBuffer":15,"macroReset":16,"getLayerCount":17,"keymapGetBuffer":18,"keymapSetBuffer":19},"batteryResponseLayout":{"battery":4,"state":5,"moduleVersion":6,"indicator":7},"stateNames":{"0":"未初始化","1":"配对中","2":"已连接","3":"已断开","4":"被拒绝"},"indicatorBits":{"1":"CapsLock","2":"NumLock","4":"ScrollLock"},"customKeycodes":[{"name":"DEV BT1","title":"DEV BT1","shortName":"BT1"},{"name":"DEV BT2","title":"DEV BT2","shortName":"BT2"},{"name":"DEV BT3","title":"DEV BT3","shortName":"BT3"},{"name":"DEV 2.4G","title":"DEV 2.4G","shortName":"2.4G"},{"name":"DEV USB","title":"DEV USB","shortName":"USB"},{"name":"display test white","title":"display test white","shortName":"WHITE"},{"name":"HS_BATQ","title":"BATQ","shortName":"BATQ"},{"name":"Bluetooth no secret pairing channel","title":"BT no secret pairing","shortName":"NOSEC"},{"name":"Recording lighting effects","title":"Recording lighting","shortName":"REC"}],"layouts":{"keymap":[["0,0",{"x":1},"0,2","0,3","0,4","0,5",{"x":0.5},"0,6","0,7","0,8","0,9",{"x":0.5},"0,10","0,11","0,12","0,13",{"x":0.25},"0,14",{"x":0.25},"0,15","0,16","0,17","0,18"],[{"y":0.5},"1,0","1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":2},"1,13",{"x":0.25},"1,14",{"x":0.25},"1,15","1,16","1,17","1,18"],[{"w":1.5},"2,0","2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12",{"w":1.5},"2,13",{"x":0.25},"2,14",{"x":0.25},"2,15","2,16","2,17",{"h":2},"2,18"],[{"w":1.75},"3,0","3,1","3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"w":2.25},"3,13",{"x":0.25},"3,14",{"x":0.25},"3,15","3,16","3,17"],[{"w":2.25},"4,0","4,2","4,3","4,4","4,5","4,6","4,7","4,8","4,9","4,10","4,11",{"w":1.75},"4,12","4,13",{"x":1.5},"4,15","4,16","4,17",{"h":2},"5,18"],[{"w":1.25},"5,0",{"w":1.25},"5,1",{"w":1.25},"5,2",{"w":6.25},"5,6",{"w":1.25},"5,9",{"w":1.25},"5,11",{"x":0.5},"5,12","5,13","5,14",{"x":0.5,"w":2},"5,15","5,16"]]},"rgbChannel":3,"rgbControls":{"brightness":{"id":1,"bytes":1,"range":[0,255]},"effect":{"id":2,"bytes":1,"options":[[0,"All Off 全关"],[2,"Alphas Mods"],[5,"Breathing 呼吸"],[6,"Band Sat"],[9,"Band Pinwheel Val"],[13,"Cycle Left Right"],[15,"Rainbow Moving Chevron"],[16,"Cycle Out In"],[24,"Jellybean Raindrops"],[25,"Hue Breathing 色相呼吸"],[26,"Hue Pendulum 色相摆动"],[29,"Pixel Flow"],[30,"Pixel Fractal"],[33,"Solid Reactive Simple"],[34,"Solid Reactive"],[35,"Solid Reactive Wide"],[43,"Solid Splash"],[45,"Close All"]]},"effectSpeed":{"id":3,"bytes":1,"range":[0,255]},"color":{"id":4,"bytes":3,"format":"HSV"}},"notes":{"cmd6":"补丁占用（原厂家私有，官方 usevia.app 枚举中不存在 cmd 6，已确认不冲突）","officialDriver":"https://usevia.app/","officialJson":"与本仓库 tools/max102_via.json 逐字节一致"}};
+</script>
+<script>
+"use strict";
+
+// ────────────────────────────────────────────── 常量
+const REPORT_SIZE = 33;          // hidapi 侧（含 report id 占位）的总长；WebHID 侧按实际描述符算
+const CMD = {
+  GET_PROTOCOL_VERSION: 1,
+  GET_KEYBOARD_VALUE: 2,
+  SET_KEYBOARD_VALUE: 3,
+  GET_KEYCODE: 4,
+  SET_KEYCODE: 5,
+  GET_BATTERY: 20,
+  BACKLIGHT_SET: 7,
+  BACKLIGHT_GET: 8,
+  BACKLIGHT_SAVE: 9,
+  EEPROM_RESET: 10,
+  BOOTLOADER: 11,
+  MACRO_GET_COUNT: 12,
+  MACRO_GET_SIZE: 13,
+  MACRO_GET_BUFFER: 14,
+  MACRO_SET_BUFFER: 15,
+  MACRO_RESET: 16,
+  GET_LAYER_COUNT: 17,
+  KEYMAP_GET_BUFFER: 18,
+  KEYMAP_SET_BUFFER: 19,
+};
+
+// 电量补丁只**新增** cmd 20（0x14），原厂 cmd 1-19 一个字节都没改。
+// cmd 20 在原厂属于越界命令（>0x12 直接回 0xFF），占用它不影响任何现有功能。
+// 详见 docs/08-电量补丁方案.md 与 patch-sdk/patches/battery/
+const RGB_CHANNEL = 3;           // menus 的 channel 号
+const RGB_ID = {                 // (channel, id, value-index)
+  BRIGHTNESS:   [RGB_CHANNEL, 1, 1],
+  EFFECT:       [RGB_CHANNEL, 2, 2],
+  EFFECT_SPEED: [RGB_CHANNEL, 3, 3],
+  COLOR:        [RGB_CHANNEL, 4, 4],
+};
+// 灯效名称。值 = 固件真正支持的效果子集（见 docs/09-VIA协议.md §4）
+// 官方 JSON 里只有英文，这里全转中文（后面括号里保留原名方便对照 QMK）
+const RGB_EFFECTS = [
+  [0,  "全关 (All Off)"],
+  [2,  "字母区亮 (Alphas Mods)"],
+  [5,  "呼吸 (Breathing)"],
+  [6,  "色带饱和 (Band Sat)"],
+  [9,  "色带风车亮度 (Band Pinwheel Val)"],
+  [13, "左右循环 (Cycle Left Right)"],
+  [15, "彩虹人字移动 (Rainbow Moving Chevron)"],
+  [16, "由外向内循环 (Cycle Out In)"],
+  [24, "彩虹糖雨滴 (Jellybean Raindrops)"],
+  [25, "色相呼吸 (Hue Breathing)"],
+  [26, "色相摆动 (Hue Pendulum)"],
+  [29, "像素流动 (Pixel Flow)"],
+  [30, "像素分数形 (Pixel Fractal)"],
+  [33, "单色响应·简 (Solid Reactive Simple)"],
+  [34, "单色响应 (Solid Reactive)"],
+  [35, "单色响应·宽 (Solid Reactive Wide)"],
+  [43, "单色飞溅 (Solid Splash)"],
+  [45, "全部收拢 (Close All)"],
+];
+
+const VENDOR_ID = 0x342D;
+const PRODUCT_ID = 0xE537;
+const USAGE_PAGE = 65376;
+
+const STATE_NAMES = {0:"未初始化",1:"配对中",2:"已连接",3:"已断开",4:"被拒绝"};
+const LED_BITS = [[1,"Caps"],[2,"Num"],[4,"Scroll"]];
+
+// 常用键位表（HID usage / QMK keycode）
+const KEYCODE_GROUPS = [
+  { name:"基础", items:[
+    [0x0000,"KC_NO 空"], [0x0001,"▽TRNS 穿透"],
+    [0x0028,"ENT 回车"], [0x0029,"ESC 退出"], [0x002A,"BSPC 退格"],
+    [0x002B,"TAB"], [0x002C,"SPC 空格"], [0x002D,"MINS 减号"],
+    [0x002E,"EQL 等号"], [0x002F,"LBRC ["], [0x0030,"RBRC ]"],
+    [0x0031,"BSLS \\\\"], [0x0032,"NUHS 非美#"], [0x0033,"SCLN ;"],
+    [0x0034,"QUOT '"], [0x0035,"GRV `"], [0x0036,"COMM ,"],
+    [0x0037,"DOT ."], [0x0038,"SLSH /"], [0x0039,"CAPS"],
+    [0x0046,"PSCR 截屏"], [0x0047,"SCRL 滚动锁"],
+    [0x0048,"PAUS"], [0x0049,"INS"], [0x004A,"HOME"],
+    [0x004B,"PGUP"], [0x004C,"DEL"], [0x004D,"END"],
+    [0x004E,"PGDN"], [0x004F,"RGHT 右"], [0x0050,"LEFT 左"],
+    [0x0051,"DOWN 下"], [0x0052,"UP 上"], [0x0053,"NUM 数字锁"],
+    [0x0054,"PSLS 小键盘/"], [0x0055,"PAST 小键盘*"],
+    [0x0056,"PMNS 小键盘-"], [0x0057,"PPLS 小键盘+"],
+    [0x0058,"PENT 小键盘回车"], [0x0062,"P1"], [0x0063,"P2"],
+    [0x0064,"P3"], [0x0065,"P4"], [0x0066,"P5"], [0x0067,"P6"],
+    [0x0068,"P7"], [0x0069,"P8"], [0x006A,"P9"], [0x006B,"P0"],
+    [0x006C,"PDOT 小键盘."], [0x006D,"PSLS"],
+  ]},
+  { name:"字母", items:
+    Array.from({length:26},(_,i)=>[0x04+i, String.fromCharCode(65+i)])
+  },
+  { name:"数字", items:
+    Array.from({length:10},(_,i)=>[0x1E+i, String(i)])
+  },
+  { name:"功能键", items:
+    Array.from({length:12},(_,i)=>[0x3A+i, "F"+(i+1)])
+      .concat(Array.from({length:12},(_,i)=>[0x68+i, "F"+(13+i)]))
+  },
+  { name:"修饰键", items:[
+    [0x00E0,"LCTL 左Ctrl"], [0x00E1,"LSFT 左Shift"],
+    [0x00E2,"LALT 左Alt"], [0x00E3,"LGUI 左Win"],
+    [0x00E4,"RCTL 右Ctrl"], [0x00E5,"RSFT 右Shift"],
+    [0x00E6,"RALT 右Alt"], [0x00E7,"RGUI 右Win"],
+    [0x5221,"MCTL 左Ctrl(修饰位)"], [0x5222,"MSFT 左Shift(修饰位)"],
+  ]},
+  { name:"多媒体", items:[
+    [0x00A5,"MNXT 下一曲"], [0x00A6,"MPRV 上一曲"],
+    [0x00A7,"MSTP 停止"], [0x00A8,"MPLY 播放/暂停"],
+    [0x00A9,"MSEL 选曲"], [0x00AA,"EJCT 弹出"],
+    [0x00A3,"MYCM 我的电脑"], [0x00A4,"WHOM 浏览器主页"],
+    [0x0183,"MAIL 邮件"], [0x0192,"CALC 计算器"],
+    [0x0221,"WSCH 搜索"], [0x0223,"WBAK 后退"],
+    [0x0224,"WFWD 前进"], [0x0225,"WSTP 停止"],
+    [0x0226,"WREF 刷新"], [0x0227,"WFAV 收藏"],
+  ]},
+  { name:"音量/亮度", items:[
+    [0x00A0,"BRIU 亮度+"], [0x00A1,"BRID 亮度-"],
+    [0x00A2,"MUTE 静音"], [0x00A3,"VOLU 音量+"],
+    [0x00A4,"VOLD 音量-"], [0x00BD,"LPAD 启动板"],
+  ]},
+  { name:"层/特殊", items:[
+    [0x5101,"▽MO(1)"], [0x5102,"▽MO(2)"], [0x5103,"▽MO(3)"],
+    [0x5104,"▽MO(4)"], [0x5201,"▽TG(1)"], [0x5202,"▽TG(2)"],
+    [0x5301,"▽TO(1)"], [0x5302,"▽TO(2)"],
+    [0x6501,"▽LT(1,KC)"], [0x6502,"▽LT(2,KC)"],
+    [0x7000,"QK_BOOT 刷机"], [0x7001,"QK_RBT 重启"],
+    [0x7010,"QK_CLE 灯开"], [0x7011,"QK_CLR 灯关"],
+    [0x7012,"QK_TGL 灯切"],
+  ]},
+  { name:"MAX102 自定义", items:[
+    [0x7E00,"BT1 蓝牙1"], [0x7E01,"BT2 蓝牙2"],
+    [0x7E02,"BT3 蓝牙3"], [0x7E03,"2.4G"],
+    [0x7E04,"USB"], [0x7E05,"WHITE 白灯测试"],
+    [0x7E06,"BATQ 查电量"], [0x7E07,"NOSEC 免密钥配对"],
+    [0x7E08,"REC 灯效录制"],
+  ]},
+  { name:"灯效 (UG_*)", items:[
+    [0x7820,"UG_TOGG 总开关"], [0x7821,"UG_NEXT 下一效果"],
+    [0x7822,"UG_PREV 上一效果"], [0x7823,"UG_HUEU 色相+"],
+    [0x7824,"UG_HUED 色相-"], [0x7825,"UG_SATU 饱和+"],
+    [0x7826,"UG_SATD 饱和-"], [0x7827,"UG_VALU 亮度+"],
+    [0x7828,"UG_VALD 亮度-"], [0x7829,"UG_SPDU 速度+"],
+    [0x782A,"UG_SPDD 速度-"],
+  ]},
+];
+
+// ────────────────────────────────────────────── 状态
+let device = null;
+let layers = 5;
+let currentLayer = 0;
+let keymap = {};          // {layer: [[code,...],...]}
+let geo = [];             // 几何: {row,col,label,x,y,w,h}（单位：u）
+let changed = new Set();  // "layer:row:col"
+let battTimer = null;
+let UNIT = 42;            // 当前 1u 的像素宽，由 fitKeyboard() 根据容器宽度计算
+const GAP = 4;            // 键间隙（像素）
+
+// ────────────────────────────────────────────── VIA 协议
+class ViaDevice {
+  constructor(hidDevice){
+    this.dev = hidDevice;
+    this.seq = 0;
+    this.outLen = 32;      // 由报告描述符实算，create() 里刷新
+    this.inLen = 32;
+  }
+
+  // 从 HIDDevice.collections 算出真实报告字节数
+  // ⚠️ WebHID 里 item.reportSize 的单位是 **位（bit）**，不是字节。
+  //    32 字节 = reportSize 8 × reportCount 32 = 256 bit。
+  //    早期版本忘了除 8，算出 256B 直接发送 → NotAllowedError。
+  static reportBytes(dev, kind){
+    for (const c of (dev.collections || [])){
+      const reports = kind === "out" ? c.outputReports : c.inputReports;
+      for (const r of (reports || [])){
+        let bits = 0;
+        for (const i of (r.items || []))
+          bits += (i.reportSize || 0) * (i.reportCount || 0);
+        if (bits > 0) return Math.ceil(bits / 8);
+      }
+    }
+    return 0;
+  }
+
+  static isVia(dev){
+    return (dev.collections || []).some(
+      c => c.usagePage === USAGE_PAGE && c.usage === 0x61);
+  }
+
+  /** 弹出授权框，并严格挑出 VIA 接口 */
+  static async request(){
+    const devs = await navigator.hid.requestDevice({
+      filters: [
+        {vendorId: VENDOR_ID, productId: PRODUCT_ID, usagePage: USAGE_PAGE},
+        {vendorId: VENDOR_ID, productId: PRODUCT_ID},
+      ]
+    });
+    if (!devs.length) throw new Error("未选择设备");
+
+    // ⚠️ 关键：浏览器可能把同一 PID 的多个 HID 集合都返回（键盘/鼠标/消费者/VIA），
+    //   直接 devs[0] 很可能选到键盘接口 → sendReport 报
+    //   NotAllowedError: Failed to write the report。
+    //   必须按 usagePage/usage 挑出真正的 VIA 集合。
+    const via = devs.find(ViaDevice.isVia);
+    if (!via){
+      const seen = devs.map(d => (d.collections||[])
+        .map(c => `0x${c.usagePage.toString(16)}/0x${c.usage.toString(16)}`)
+        .join(",")).join(" | ");
+      throw new Error("选中的不是 VIA 接口（期望 0xff60/0x61）。实际：" + seen);
+    }
+    return via;
+  }
+
+  /** 打开后取真实报告长度（算不出时回退 32，已实测可用） */
+  initLengths(){
+    const o = ViaDevice.reportBytes(this.dev, "out");
+    const i = ViaDevice.reportBytes(this.dev, "in");
+    this.outLen = o > 0 ? o : 32;
+    this.inLen  = i > 0 ? i : 32;
+  }
+
+  async send(bytes){
+    // 设备描述符无 Report ID 项，输入/输出均 32 字节（实测）：
+    //   75 08 95 20 81 02 → input  32B
+    //   75 08 95 20 91 02 → output 32B
+    // WebHID 的 sendReport(id, data) 要求 data 长度**正好等于**报告字节数。
+    // 诊断页实测：len=32 成功，len=33/64 报 NotAllowedError。
+    // 调用方习惯传 [0, cmd, ...]（0 是 hidapi 的 report id 占位）→ 去掉它。
+    const src = (bytes.length && bytes[0] === 0) ? bytes.slice(1) : bytes;
+    const buf = new Uint8Array(this.outLen);   // ← 用实算长度，不写死 32
+    buf.set(src.slice(0, this.outLen));
+    await this.dev.sendReport(0, buf);
+    return await this.recv();
+  }
+  async recv(){
+    return new Promise((resolve)=>{
+      let done = false;
+      const onData = (e)=>{
+        if (done) return;
+        done = true;
+        this.dev.removeEventListener("inputreport", onData);
+        // e.data 是 DataView：不含 report id（本设备无 ID），就是 32 字节响应
+        resolve(new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength));
+      };
+      this.dev.addEventListener("inputreport", onData);
+      setTimeout(()=>{
+        if (done) return;
+        done = true;
+        this.dev.removeEventListener("inputreport", onData);
+        resolve(null);
+      }, 1500);
+    });
+  }
+  async protocolVersion(){
+    const r = await this.send([0, CMD.GET_PROTOCOL_VERSION]);
+    if (!r) return -1;
+    // 响应布局: [cmd][0x00][version]  → 实测 01 00 0c = v12
+    return r[2];
+  }
+  async layerCount(){
+    const r = await this.send([0, CMD.GET_LAYER_COUNT]);
+    return r ? r[1] : -1;
+  }
+  async getKeycode(layer,row,col){
+    const r = await this.send([0, CMD.GET_KEYCODE, layer, row, col]);
+    if (!r) return null;
+    return (r[4]<<8) | r[5];
+  }
+  async setKeycode(layer,row,col,code){
+    const r = await this.send([0, CMD.SET_KEYCODE, layer, row, col,
+                               (code>>8)&0xFF, code&0xFF]);
+    return !!r;
+  }
+  async getBuffer(offset,size){
+    const r = await this.send([0, CMD.KEYMAP_GET_BUFFER,
+                               (offset>>8)&0xFF, offset&0xFF, size]);
+    if (!r) return null;
+    return Array.from(r.slice(4, 4+size));
+  }
+  async getBattery(){
+    const r = await this.send([0, CMD.GET_BATTERY]);
+    if (!r || r[0] !== CMD.GET_BATTERY) return null;
+    return {
+      battery: r[4], state: r[5],
+      moduleVersion: r[6], indicator: r[7],
+    };
+  }
+  async bootloader(){
+    await this.send([0, CMD.BOOTLOADER]);
+  }
+  // 灯效：cmd 7=写 / cmd 8=读，channel 3
+  //
+  // ⚠️⚠️ 两个必须记住的坑（都实际踩过）：
+  //   1) 命令码 7=SET、8=GET。拿 7 当查询用 = **把参数写进固件**。
+  //      曾经因此把亮度/速度/颜色全写成 0，键盘直接不亮了。
+  //   2) 响应数据在 **r[3]**，不是 r[4]。
+  //      响应布局是 [cmd][channel][id][data...]，只有三段头，
+  //      跟 cmd 18 (keymap) 的 [cmd][00][off_hi][off_lo][data...] 不一样。
+  async getBacklight(id, nbytes=1, tries=6){
+    for (let i = 0; i < tries; i++){
+      const r = await this.send([0, CMD.BACKLIGHT_GET, RGB_CHANNEL, id, nbytes]);
+      if (!r) continue;
+      // 线上会混进无关报文（固件定期推的电量包 14 00 00 00 64 ...），
+      // 只要响应头三个字节不全对上，就丢弃重试。
+      if (r[0] !== CMD.BACKLIGHT_GET || r[1] !== RGB_CHANNEL || r[2] !== id){
+        continue;
+      }
+      return Array.from(r.slice(3, 3 + nbytes));
+    }
+    return null;
+  }
+  async setBacklight(id, bytes){
+    await this.send([0, CMD.BACKLIGHT_SET, RGB_CHANNEL, id, ...bytes]);
+  }
+  async eepromReset(){
+    await this.send([0, CMD.EEPROM_RESET]);
+  }
+}
+
+// ────────────────────────────────────────────── 日志/提示
+function log(msg, cls){
+  const el = document.getElementById("log");
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+  while (el.children.length > 200) el.removeChild(el.firstChild);
+}
+
+let toastTimer = null;
+function toast(msg, cls){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (cls ? " " + cls : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.className = "toast"; }, 2200);
+}
+
+// ────────────────────────────────────────────── 几何布局
+const UNIT_DEFAULT = 42;  // 兜底值；实际由 fitKeyboard() 算
+
+function buildGeometry(keymapLayout){
+  const keys = [];
+  // ⚠️ KLE 语义要点（踩过坑）：
+  //   - y 属性是「**行偏移**」，不是绝对坐标。而每行默认 y = ri。
+  //     所以 {"y": 0.5} 开头那行会被放到 ri + 0.5 行，
+  //     导致它和上一行、下一行各重叠 0.5 行 → 32 对键丸在一起。
+  //   - 标准 KLE 的 y 只用于真正的错位行（如小键盘 + 号键）。
+  //     本键盘的 {"y":0.5} 是错的，必须忽略。
+  //   - h:2 的键（右 Enter / 右 Shift 那两段）要用**矩阵行号**定位。
+  //
+  // 坐标单位统一用 **u**（1u = 一个标准键宽），像素换算在 renderKeyboard 里做。
+  keymapLayout.forEach((row, ri)=>{
+    let x = 0;
+    const y = ri;             // ← 每行固定用行号，不被该行的 y 属性推动
+    let w = 1, h = 1;
+    for (const item of row){
+      if (typeof item === "object" && item !== null){
+        if (item.x !== undefined){ x += item.x; }
+        if (item.w !== undefined){ w = item.w; }
+        if (item.h !== undefined){ h = item.h; }
+        // 注意：故意不处理 item.y（见上方注释）
+        continue;
+      }
+      const [r,c] = item.split(",").map(Number);
+      keys.push({ row:r, col:c, x, y, w, h, label:"" });   // 全部以 u 存
+      x += w;
+      w = 1; h = 1;
+    }
+  });
+  return keys;
+}
+
+// 根据容器宽度算出最合适的 1u 像素宽（自适应缩放）
+// 键盘在布局坐标里的总尺寸（单位 u）
+function keyboardExtent(){
+  let maxX = 0, maxY = 0;
+  for (const k of geo){
+    maxX = Math.max(maxX, k.x + k.w);
+    maxY = Math.max(maxY, k.y + k.h);
+  }
+  return { maxU: maxX, maxV: maxY };
+}
+
+/**
+ * 算出自适应缩放。**同时看宽和高**：
+ * 只看宽的话，窄高窗口（比如分屏）会把键盘撑出竖向滚动。
+ *
+ * 优先级：用户手动值 > 自动值
+ */
+function computeFit(){
+  const kb = document.getElementById("kb");
+  const host = kb && kb.parentElement;           // section.content
+  if (!kb || !host || !geo.length) return UNIT_DEFAULT;
+
+  const { maxU, maxV } = keyboardExtent();
+  const cs = getComputedStyle(kb);
+  const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+
+  // 可用宽：优先用父容器（否则 kb 自己宽度取决于内容，会形成循环）
+  const availW = host.clientWidth - 40 - padX;      // 40 = section.content 左右 padding
+  // 可用高：父容器高度 - 层标签等占位（粗估 90px）
+  const availH = host.clientHeight - 90 - padY;
+
+  const byW = maxU > 0 ? (availW * 0.99) / maxU : UNIT_DEFAULT;
+  const byH = maxV > 0 && availH > 120 ? (availH * 0.99) / maxV : Infinity;
+
+  const ideal = Math.min(byW, byH);
+  const auto = Math.max(16, Math.min(110, Math.floor(ideal)));
+
+  // 手动缩放（Ctrl+滚轮 / 按钮），存在 localStorage
+  const manual = parseFloat(localStorage.getItem("max102_unit") || "0");
+  return manual > 0 ? Math.max(10, Math.min(220, manual)) : auto;
+}
+
+function fitKeyboard(){
+  UNIT = computeFit();
+  return UNIT;
+}
+
+// Ctrl + 滚轮 / 工具栏按钮 手动缩放
+function setUnit(u){
+  UNIT = Math.max(10, Math.min(220, Math.round(u)));
+  localStorage.setItem("max102_unit", String(UNIT));
+  renderKeyboard();
+}
+function resetUnit(){
+  localStorage.removeItem("max102_unit");
+  renderKeyboard();
+}
+/** 按比例缩放（基于当前实际像素） */
+function zoomBy(factor){
+  const cur = UNIT || fitKeyboard();
+  setUnit(cur * factor);
+}
+
+/** 把当前 UNIT 换算成“相对自适应基准”的百分比显示 */
+function autoUnit(){
+  const saved = parseFloat(localStorage.getItem("max102_unit") || "0");
+  const keep = saved;
+  localStorage.removeItem("max102_unit");
+  const base = computeFit();
+  if (keep > 0) localStorage.setItem("max102_unit", String(keep));
+  return base;
+}
+
+function updateZoomLabel(){
+  const el = document.getElementById("zoomVal");
+  if (!el) return;
+  const base = autoUnit();
+  const pct = base > 0 ? Math.round((UNIT / base) * 100) : 100;
+  el.textContent = pct + "%";
+  el.title = `1u = ${UNIT}px（自适应基准 ${base}px）`;
+}
+
+// ────────────────────────────────────────────── 渲染键盘
+function renderKeyboard(){
+  const kb = document.getElementById("kb");
+  kb.innerHTML = "";
+
+  fitKeyboard();                  // ← 先算自适应缩放
+
+  const { maxU, maxV } = keyboardExtent();
+  const wPx = Math.round(maxU * UNIT);
+  const hPx = Math.round(maxV * UNIT);
+
+  // 键盘盒子按实际尺寸定宽高，并水平居中（margin:0 auto 在 CSS 里）
+  kb.style.width  = wPx + "px";
+  kb.style.height = (hPx + 20) + "px";
+  kb.style.minWidth = "0";
+
+  // 字号随键大小缩放（用 CSS 变量，键内文字统一跟随）
+  kb.style.setProperty("--key-font", Math.max(8, Math.round(UNIT * 0.27)) + "px");
+  kb.style.setProperty("--key-font-sm", Math.max(7, Math.round(UNIT * 0.21)) + "px");
+
+  for (const k of geo){
+    const el = document.createElement("div");
+    el.className = "key";
+    el.style.left   = Math.round(k.x * UNIT) + "px";
+    el.style.top    = Math.round(k.y * UNIT) + "px";
+    // 间隙随缩放变化，但不超过键宽的 1/4
+    const gap = Math.min(GAP, Math.round(k.w * UNIT * 0.18));
+    el.style.width  = Math.round(k.w * UNIT - gap) + "px";
+    el.style.height = Math.round(k.h * UNIT - gap) + "px";
+
+    const code = keymap[currentLayer]?.[k.row]?.[k.col];
+    const key = `${currentLayer}:${k.row}:${k.col}`;
+
+    if (code === undefined || code === null){
+      el.classList.add("absent");
+      el.innerHTML = `<span class="lbl">${k.row},${k.col}</span>`;
+    } else {
+      if (changed.has(key)) el.classList.add("changed");
+      el.innerHTML = `<span class="lbl">${keycodeName(code)}</span>`;
+      el.dataset.row = k.row;
+      el.dataset.col = k.col;
+      el.addEventListener("click", ()=> openPicker(k.row, k.col));
+    }
+    kb.appendChild(el);
+  }
+
+  updateZoomLabel();
+}
+
+function keycodeName(code){
+  for (const g of KEYCODE_GROUPS){
+    for (const [c, name] of g.items){
+      if (c === code) return name.split(" ")[0];
+    }
+  }
+  if (code >= 0x7E00 && code <= 0x7E17) return `KB${code-0x7E00}`;
+  return "0x" + code.toString(16).toUpperCase().padStart(4,"0");
+}
+function keycodeFull(code){
+  for (const g of KEYCODE_GROUPS){
+    for (const [c, name] of g.items){
+      if (c === code) return `${name}  (0x${code.toString(16).toUpperCase().padStart(4,"0")})`;
+    }
+  }
+  return `0x${code.toString(16).toUpperCase().padStart(4,"0")}`;
+}
+
+// ────────────────────────────────────────────── 层切换
+function renderLayerTabs(){
+  const el = document.getElementById("layerTabs");
+  el.innerHTML = "";
+  const names = ["层 0 基础","层 1 FN","层 2 基础2","层 3 FN2","层 4 BOOT"];
+  for (let i=0;i<layers;i++){
+    const b = document.createElement("div");
+    b.className = "layer-tab" + (i===currentLayer ? " on" : "");
+    b.textContent = names[i] || `层 ${i}`;
+    b.onclick = ()=>{ currentLayer = i; renderLayerTabs(); renderKeyboard(); };
+    el.appendChild(b);
+  }
+}
+
+// ────────────────────────────────────────────── 键位选择器
+let pickTarget = null;
+
+function openPicker(row, col){
+  pickTarget = { row, col };
+  const code = keymap[currentLayer][row][col];
+  document.getElementById("modalTitle").textContent =
+    `层 ${currentLayer} → 矩阵 (${row}, ${col})`;
+  document.getElementById("modalCur").textContent = keycodeFull(code);
+  document.getElementById("kcSearch").value = "";
+  renderKeycodeList("");
+  document.getElementById("modal").classList.add("show");
+  document.getElementById("kcSearch").focus();
+}
+
+function renderKeycodeList(filter){
+  const list = document.getElementById("kcList");
+  list.innerHTML = "";
+  const f = filter.trim().toLowerCase();
+
+  for (const g of KEYCODE_GROUPS){
+    const items = g.items.filter(([c,name])=>
+      !f || name.toLowerCase().includes(f) ||
+      c.toString(16).includes(f)
+    );
+    if (!items.length) continue;
+
+    const box = document.createElement("div");
+    box.className = "kc-group";
+    const h = document.createElement("h4");
+    h.textContent = g.name;
+    box.appendChild(h);
+
+    const grid = document.createElement("div");
+    grid.className = "kc-grid";
+    for (const [code,name] of items){
+      const b = document.createElement("div");
+      b.className = "kc";
+      b.textContent = name;
+      b.title = `0x${code.toString(16).toUpperCase().padStart(4,"0")}`;
+      b.onclick = ()=> applyKeycode(code);
+      grid.appendChild(b);
+    }
+    box.appendChild(grid);
+    list.appendChild(box);
+  }
+}
+
+async function applyKeycode(code){
+  if (!pickTarget) return;
+  const { row, col } = pickTarget;
+  closePicker();
+
+  const key = `${currentLayer}:${row}:${col}`;
+  const old = keymap[currentLayer][row][col];
+
+  log(`写入 层${currentLayer} (${row},${col}): 0x${old.toString(16).toUpperCase()} → 0x${code.toString(16).toUpperCase()}`);
+  const ok = await device.setKeycode(currentLayer, row, col, code);
+  if (!ok){
+    log(`  失败（键盘无响应）`, "er");
+    toast("写入失败", "er");
+    return;
+  }
+  // 读回验证
+  const back = await device.getKeycode(currentLayer, row, col);
+  if (back === code){
+    keymap[currentLayer][row][col] = code;
+    changed.add(key);
+    log(`  成功并已读回验证`, "ok");
+    toast(`已改为 ${keycodeName(code)}`, "ok");
+  } else {
+    // 有些固件写入是异步落盘的，先用写入值显示
+    keymap[currentLayer][row][col] = code;
+    changed.add(key);
+    log(`  已写入，但读回为 0x${(back||0).toString(16).toUpperCase()}（可能延迟落盘）`, "er");
+    toast("已写入（读回不一致）", "er");
+  }
+  renderKeyboard();
+}
+
+function closePicker(){
+  document.getElementById("modal").classList.remove("show");
+  pickTarget = null;
+}
+
+// ────────────────────────────────────────────── 电量
+function renderBattery(info){
+  const valEl = document.getElementById("batVal");
+  const fillEl = document.getElementById("batFill");
+  if (!info){
+    valEl.innerHTML = `--<small>%</small>`;
+    document.getElementById("batState").textContent = "--";
+    document.getElementById("batVer").textContent = "--";
+    document.getElementById("batLed").textContent = "--";
+    return;
+  }
+  const bat = Math.min(100, info.battery);
+  valEl.innerHTML = `${bat}<small>%</small>`;
+  fillEl.style.width = bat + "%";
+  fillEl.className = "battery-fill" + (bat < 30 ? " low" : "");
+
+  document.getElementById("batState").textContent =
+    STATE_NAMES[info.state] ?? `未知(${info.state})`;
+  document.getElementById("batVer").textContent = info.moduleVersion;
+
+  const leds = LED_BITS.filter(([bit])=> info.indicator & bit).map(([,n])=>n);
+  document.getElementById("batLed").textContent = leds.length ? leds.join(" ") : "无";
+}
+
+async function pollBattery(){
+  if (!device) return;
+  try {
+    const info = await device.getBattery();
+    if (info) renderBattery(info);
+  } catch(e){
+    // 静默
+  }
+}
+
+// ────────────────────────────────────────────── 灯效
+let rgbBusy = false;
+
+// ────────────────────────────────── 按键高亮（按下时亮起来）
+//
+// ⚠️ 为什么不能用 WebHID 听按键：
+//   实测（在 2.4G 模式下） dongle 的键盘类 HID 节点（0x0001/0x06 等）
+//   **不向应用层上报 input report** —— 按键由 dongle 直接透传给系统，
+//   浏览器侧收不到。这跟接口被独占无关，是 dongle 的行为。
+//   所以只能退一步：**用本机键盘事件做可视反馈**。
+//   它按的是“你实际按下的键”，而不是“键盘上报的矩阵坐标”，
+//   但对“看看我该按哪个键 / 当前这个键映射成了什么”已经够用。
+
+// 浏览器 KeyboardEvent.key / code → VIA 键码（尽量覆盖常用的）
+const WEBKEY_TO_QMK = {
+  // 字母
+  ...Object.fromEntries(
+    "abcdefghijklmnopqrstuvwxyz".split("").map((c,i)=>
+      [c, 0x04 + i])),
+  // 数字排
+  "1":0x1E,"2":0x1F,"3":0x20,"4":0x21,"5":0x22,
+  "6":0x23,"7":0x24,"8":0x25,"9":0x26,"0":0x27,
+  // 符号
+  "-":0x2D,"=":0x2E,"[":0x2F,"]":0x30,"\\":0x31,
+  ";":0x33,"'":0x34,"`":0x35,",":0x36,".":0x37,"/":0x38,
+  // 控制键
+  "Escape":0x29,"Backspace":0x2A,"Tab":0x2B,"Enter":0x28,
+  " ":0x2C,"CapsLock":0x39,
+  "Shift":0xE1,"Control":0xE0,"Alt":0xE2,"Meta":0xE3,
+  // 功能键
+  "F1":0x3A,"F2":0x3B,"F3":0x3C,"F4":0x3D,"F5":0x3E,"F6":0x3F,
+  "F7":0x40,"F8":0x41,"F9":0x42,"F10":0x43,"F11":0x44,"F12":0x45,
+  // 编辑/导航
+  "Insert":0x49,"Delete":0x4C,"Home":0x4A,"End":0x4D,
+  "PageUp":0x4B,"PageDown":0x4E,
+  "PrintScreen":0x46,"ScrollLock":0x47,"Pause":0x48,
+  "ArrowRight":0x4F,"ArrowLeft":0x50,"ArrowDown":0x51,"ArrowUp":0x52,
+  // 小键盘（除去已在符号里定义过的 / 和 * ，避免重复键）
+  "NumLock":0x53,
+};
+
+// 用 code 做补充（左右修饰键、小键盘）
+const WEBCODE_TO_QMK = {
+  "ShiftLeft":0xE1,"ShiftRight":0xE5,
+  "ControlLeft":0xE0,"ControlRight":0xE4,
+  "AltLeft":0xE2,"AltRight":0xE6,
+  "MetaLeft":0xE3,"MetaRight":0xE7,
+  "Numpad0":0x62,"Numpad1":0x59,"Numpad2":0x5A,"Numpad3":0x5B,
+  "Numpad4":0x5C,"Numpad5":0x5D,"Numpad6":0x5E,
+  "Numpad7":0x5F,"Numpad8":0x60,"Numpad9":0x61,
+  "NumpadEnter":0x58,"NumpadAdd":0x57,"NumpadSubtract":0x56,
+  "NumpadMultiply":0x55,"NumpadDivide":0x54,"NumpadDecimal":0x63,
+  "NumpadEqual":0x67,
+};
+
+// 键码 → 页面上所有对应位置的 key 元素
+function keyElementsByCode(code){
+  const out = [];
+  for (const k of geo){
+    const c = keymap[currentLayer]?.[k.row]?.[k.col];
+    if (c === code){
+      const el = document.querySelector(
+        `.key[data-row="${k.row}"][data-col="${k.col}"]`);
+      if (el) out.push(el);
+    }
+  }
+  return out;
+}
+
+function onPhysicalKey(e, down){
+  // 在输入框里打字时不刷键盘图（否则没法搜索键码）
+  const tag = (e.target && e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select"){
+    if (!(e.key === "Escape")) return;
+  }
+  if (!geo.length) return;
+
+  const code = WEBCODE_TO_QMK[e.code] ?? WEBKEY_TO_QMK[e.key];
+  if (code === undefined) return;
+
+  for (const el of keyElementsByCode(code)){
+    if (down) el.classList.add("active");
+    else el.classList.remove("active");
+  }
+}
+
+function clearActiveKeys(){
+  document.querySelectorAll(".key.active")
+    .forEach(el => el.classList.remove("active"));
+}
+
+function initRgbControls(){
+  const sel = document.getElementById("rgbEffect");
+  sel.innerHTML = "";
+  for (const [v,name] of RGB_EFFECTS){
+    const o = document.createElement("option");
+    o.value = v; o.textContent = name;
+    sel.appendChild(o);
+  }
+}
+
+function rgbSetEnabled(on){
+  for (const id of ["rgbBright","rgbEffect","rgbSpeed","rgbColor"]){
+    document.getElementById(id).disabled = !on;
+  }
+}
+
+async function readRgb(){
+  if (!device) return;
+  rgbBusy = true;
+  try {
+    const br = await device.getBacklight(RGB_ID.BRIGHTNESS[1], 1);
+    if (br){
+      document.getElementById("rgbBright").value = br[0];
+      document.getElementById("rgbBrightV").textContent = br[0];
+    }
+    const ef = await device.getBacklight(RGB_ID.EFFECT[1], 1);
+    if (ef){
+      document.getElementById("rgbEffect").value = ef[0];
+    }
+    const sp = await device.getBacklight(RGB_ID.EFFECT_SPEED[1], 1);
+    if (sp){
+      document.getElementById("rgbSpeed").value = sp[0];
+      document.getElementById("rgbSpeedV").textContent = sp[0];
+    }
+    // 颜色：固件只存 H、S，不存 V（亮度由专用滑条控）。
+    // 所以回读时用 V=255 复原一个可视颜色。
+    const co = await device.getBacklight(RGB_ID.COLOR[1], 2);
+    if (co && co.length >= 2){
+      const hex = hsvToHex(co[0], co[1], 255);
+      document.getElementById("rgbColor").value = hex;
+      document.getElementById("rgbColorV").textContent =
+        `${hex.toUpperCase()}  H${co[0]} S${co[1]}`;
+    }
+    log("灯效参数已读取", "ok");
+  } catch(e){
+    log("读灯效失败: " + e.message, "er");
+  } finally {
+    rgbBusy = false;
+  }
+}
+
+function hsvToHex(h,s,v){
+  const H = h / 255 * 360, S = s / 255, V = v / 255;
+  const C = V * S, X = C * (1 - Math.abs((H/60) % 2 - 1)), m = V - C;
+  let r=0,g=0,b=0;
+  if (H<60){[r,g,b]=[C,X,0];} else if (H<120){[r,g,b]=[X,C,0];}
+  else if (H<180){[r,g,b]=[0,C,X];} else if (H<240){[r,g,b]=[0,X,C];}
+  else if (H<300){[r,g,b]=[X,0,C];} else {[r,g,b]=[C,0,X];}
+  const to = x => Math.round((x+m)*255).toString(16).padStart(2,"0");
+  return "#" + to(r) + to(g) + to(b);
+}
+
+function hexToHsv(hex){
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), d = mx-mn;
+  let h = 0;
+  if (d){
+    if (mx===r) h = 60*(((g-b)/d) % 6);
+    else if (mx===g) h = 60*((b-r)/d + 2);
+    else h = 60*((r-g)/d + 4);
+  }
+  if (h < 0) h += 360;
+  const s = mx ? d/mx : 0;
+  return [Math.round(h/360*255), Math.round(s*255), Math.round(mx*255)];
+}
+
+// 只要 H/S（固件不存 V，亮度由「亮度」滑条控）
+function hexToHs(hex){
+  const [h,s] = hexToHsv(hex);
+  return [h,s];
+}
+
+async function writeRgb(id, bytes, label){
+  if (!device || rgbBusy) return;
+  await device.setBacklight(id, bytes);
+  log(`灯效写入 ${label}`, "ok");
+}
+
+function bindRgbControls(){
+  const bright = document.getElementById("rgbBright");
+  const speed  = document.getElementById("rgbSpeed");
+  const effect = document.getElementById("rgbEffect");
+  const color  = document.getElementById("rgbColor");
+
+  bright.oninput = ()=>{
+    document.getElementById("rgbBrightV").textContent = bright.value;
+  };
+  bright.onchange = ()=>{
+    writeRgb(RGB_ID.BRIGHTNESS[1], [Number(bright.value)], `亮度=${bright.value}`);
+  };
+
+  speed.oninput = ()=>{
+    document.getElementById("rgbSpeedV").textContent = speed.value;
+  };
+  speed.onchange = ()=>{
+    writeRgb(RGB_ID.EFFECT_SPEED[1], [Number(speed.value)], `速度=${speed.value}`);
+  };
+
+  effect.onchange = ()=>{
+    writeRgb(RGB_ID.EFFECT[1], [Number(effect.value)],
+             `效果=${effect.options[effect.selectedIndex].text}`);
+  };
+
+  // 颜色：**选中即生效**，不需要再点确定。
+  //
+  // 浏览器原生 <input type=color> 只有在关闭取色器对话框时才发 change，
+  // 体验上等于“选完还得再确认一下”。这里改成：
+  //   input  事件 → 边拖边写（节流 80ms，避免刷爆 HID）
+  //   change 事件 → 立即补一发，保证最终值一定落地
+  let colorTimer = null;
+  let lastSent = "";
+  const pushColor = (immediate)=>{
+    const doSend = ()=>{
+      if (color.value === lastSent) return;
+      lastSent = color.value;
+      const [h,s] = hexToHs(color.value);   // 固件只存 H、S；V 恒为最亮
+      document.getElementById("rgbColorV").textContent =
+        `${color.value.toUpperCase()}  H${h} S${s}`;
+      writeRgb(RGB_ID.COLOR[1], [h, s, 255], `颜色 ${color.value}`);
+    };
+    if (immediate){
+      clearTimeout(colorTimer);
+      doSend();
+    } else {
+      clearTimeout(colorTimer);
+      colorTimer = setTimeout(doSend, 80);
+    }
+  };
+  color.oninput  = ()=> pushColor(false);
+  color.onchange = ()=> pushColor(true);
+}
+
+// ────────────────────────────────────────────── 连接流程
+async function connect(){
+  if (!("hid" in navigator)){
+    toast("浏览器不支持 WebHID，请用 Chrome / Edge", "er");
+    log("WebHID 不可用。请用 Chrome 或 Edge 打开本页面。", "er");
+    return;
+  }
+
+  try {
+    log("请求 HID 设备权限...");
+    const hidDev = await ViaDevice.request();
+    if (!hidDev.opened) await hidDev.open();
+
+    device = new ViaDevice(hidDev);
+    device.initLengths();          // 按报告描述符取真实长度（位 ÷ 8）
+    if (device.outLen !== 32){
+      log(`注意：报告长度为 ${device.outLen}B（预期 32B），可能选错了接口`, "er");
+    }
+    log(`已打开: ${hidDev.productName || "MAX102"}  `
+        + `(in=${device.inLen}B out=${device.outLen}B)`, "ok");
+
+    const proto = await device.protocolVersion();
+    log(`VIA 协议版本: ${proto}`);
+    if (proto !== 12){
+      log(`警告：期望协议版本 12，实际 ${proto}`, "er");
+    }
+
+    layers = await device.layerCount();
+    if (layers <= 0) layers = 5;
+    log(`层数: ${layers}`);
+
+    await readAllLayers();
+
+    document.getElementById("statusBadge").textContent = "已连接";
+    document.getElementById("statusBadge").className = "badge ok";
+    document.getElementById("btnConnect").textContent = "断开";
+    for (const id of ["btnReload","btnReset","btnBoot"]){
+      document.getElementById(id).disabled = false;
+    }
+
+    rgbSetEnabled(true);
+    await readRgb();
+    await pollBattery();
+    if (battTimer) clearInterval(battTimer);
+    battTimer = setInterval(pollBattery, 3000);
+
+  } catch(e){
+    log(`连接失败: ${e.message}`, "er");
+    toast("连接失败", "er");
+  }
+}
+
+const ROWS = 6, COLS = 19;
+const LAYER_BYTES = ROWS * COLS * 2;   // 228
+
+async function readAllLayers(){
+  keymap = {};
+  for (let L=0; L<layers; L++){
+    log(`读取层 ${L}...`);
+    const flat = [];              // 扁平 114 个键码
+    let off = 0;
+    const base = L * LAYER_BYTES;
+    while (off < LAYER_BYTES){
+      const n = Math.min(28, LAYER_BYTES - off);
+      const chunk = await device.getBuffer(base + off, n);
+      if (!chunk || chunk.length < n){
+        log(`  层 ${L} 偏移 ${off} 读取失败`, "er");
+        break;
+      }
+      flat.push(...chunk);
+      off += n;
+    }
+    // 字节 -> 键码（大端）
+    const codes = [];
+    for (let i=0; i+1 < flat.length; i+=2){
+      codes.push((flat[i]<<8) | flat[i+1]);
+    }
+    // 扁平 -> 6x19 网格
+    const grid = [];
+    for (let r=0;r<ROWS;r++){
+      grid.push(codes.slice(r*COLS, (r+1)*COLS));
+    }
+    while (grid.length < ROWS) grid.push(new Array(COLS).fill(0));
+    keymap[L] = grid;
+    const nz = codes.filter(c=>c).length;
+    log(`  层 ${L}: ${codes.length} 键码, ${nz} 非零`);
+  }
+  changed.clear();
+  renderLayerTabs();
+  renderKeyboard();
+  log("键位读取完成", "ok");
+}
+
+function disconnect(){
+  if (battTimer){ clearInterval(battTimer); battTimer = null; }
+  device = null;
+  document.getElementById("statusBadge").textContent = "未连接";
+  document.getElementById("statusBadge").className = "badge";
+  document.getElementById("btnConnect").textContent = "连接键盘";
+  for (const id of ["btnReload","btnReset","btnBoot"]){
+    document.getElementById(id).disabled = true;
+  }
+  renderBattery(null);
+  rgbSetEnabled(false);
+  log("已断开");
+}
+
+// ────────────────────────────────────────────── 初始化
+
+// device.json 有三种拿法（按优先级）：
+//   1. 全局变量 DEVICE_JSON  —— 打包成单文件时内联进来，连 fetch 都不用
+//   2. fetch("device.json")   —— 起本地服务时
+//   3. 内置兜底                —— 极端情况也能跑
+async function loadDeviceJson(){
+  if (typeof DEVICE_JSON !== "undefined" && DEVICE_JSON) return DEVICE_JSON;
+  try {
+    const r = await fetch("device.json", {cache: "no-store"});
+    if (r.ok) return await r.json();
+  } catch (_) { /* file:// 下 fetch 会失败，正常 */ }
+  throw new Error("读不到 device.json；请用 tools/launch.py 启动，或使用打包版");
+}
+
+async function init(){
+  const deviceJson = await loadDeviceJson();
+  const layout = deviceJson.layouts.keymap;
+  geo = buildGeometry(layout);
+
+  // 用官方键位表填默认标签（读不到时显示）
+  renderLayerTabs();
+  for (let L=0;L<5;L++) keymap[L] = Array.from({length:6},()=>new Array(19).fill(0));
+  renderKeyboard();
+
+  document.getElementById("btnConnect").onclick = ()=>{
+    if (device) disconnect(); else connect();
+  };
+  document.getElementById("btnReload").onclick = async ()=>{
+    if (!device) return;
+    log("重读全部层...");
+    await readAllLayers();
+  };
+  document.getElementById("btnReset").onclick = async ()=>{
+    if (!device) return;
+    if (!confirm("恢复默认键位会清空所有自定义设置，确定吗？")) return;
+    await device.eepromReset();
+    log("已发送恢复默认命令，键盘将重启", "ok");
+  };
+  document.getElementById("btnBoot").onclick = async ()=>{
+    if (!device) return;
+    // ⚠️ 已知限制（反汇编确认）：本固件的 VIA cmd 11 (BOOTLOADER_JUMP)
+    // 只执行 `movs r3,#0xff; strb r3,[r4]; b 公共出口`，
+    // **根本不调用 0x0800BCB4 那个真正的 wb32_dfu 跳转函数**。
+    // 所以发 cmd 11 不会进 DFU —— 原厂就没接这条线。
+    const msg =
+      "这个按钮在 MAX102 原厂固件上无效。\\n\\n" +
+      "原因（反汇编已确认）：\\n" +
+      "VIA cmd 11 的 handler 在 0x0800B710，只有 3 条指令：\\n" +
+      "    movs r3, #0xff\\n" +
+      "    strb r3, [r4]\\n" +
+      "    b    0x0800B69C      ← 直接返回，不跳 DFU\\n\\n" +
+      "真正的 wb32_dfu_jump 在 0x0800BCB4，但全固件只有一个调用点\\n" +
+      "（0x0800C3DE），不是从 VIA 进来的。\\n\\n" +
+      "手动进 DFU 的方法：\\n" +
+      "  按住 FN → 按住右 Shift → 点一下 ESC\\n\\n" +
+      "要继续发送 cmd 11 试试吗？（不会损坏任何东西）";
+    if (!confirm(msg)) return;
+    await device.bootloader();
+    log("已发送 cmd 11（预期无效，原因见上方说明）", "er");
+  };
+  document.getElementById("btnCancel").onclick = closePicker;
+  document.getElementById("modal").onclick = (e)=>{
+    if (e.target.id === "modal") closePicker();
+  };
+  document.getElementById("kcSearch").oninput = (e)=>{
+    renderKeycodeList(e.target.value);
+  };
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape"){ closePicker(); return; }
+    onPhysicalKey(e, true);
+  });
+  document.addEventListener("keyup", (e)=>{
+    onPhysicalKey(e, false);
+  });
+  // 切窗回来时清掉残留高亮（松开事件可能丢）
+  window.addEventListener("blur", clearActiveKeys);
+
+  // 窗口改变大小时重新自适应缩放（带防抖）
+  let rzTimer = null;
+  window.addEventListener("resize", ()=>{
+    clearTimeout(rzTimer);
+    rzTimer = setTimeout(()=>{ renderKeyboard(); }, 120);
+  });
+
+  // ── 缩放控件 ──
+  document.getElementById("zoomIn").onclick  = ()=> zoomBy(1.12);
+  document.getElementById("zoomOut").onclick = ()=> zoomBy(1/1.12);
+  document.getElementById("zoomFit").onclick = ()=> resetUnit();
+
+  // Ctrl + 滚轮 缩放（避免和页面滚动打架）
+  document.getElementById("kb").parentElement.addEventListener("wheel", (e)=>{
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 1.08 : 1/1.08);
+  }, {passive:false});
+
+  initRgbControls();
+  bindRgbControls();
+  rgbSetEnabled(false);
+
+  log("页面就绪。点击右上角「连接键盘」。");
+  if (!("hid" in navigator)){
+    log("⚠ 当前浏览器不支持 WebHID。请用 Chrome / Edge。", "er");
+  }
+}
+
+init().catch(e => {
+  console.error(e);
+  const el = document.getElementById("log");
+  const msg = `初始化失败: ${e && e.message ? e.message : e}`;
+  if (el){
+    const d = document.createElement("div");
+    d.className = "er";
+    d.textContent = msg;
+    el.appendChild(d);
+  } else {
+    document.body.insertAdjacentHTML("afterbegin",
+      `<pre style="color:#f28b82">${msg}</pre>`);
+  }
+});
+</script>
+</body>
+</html>

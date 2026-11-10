@@ -1,5 +1,32 @@
-# ===== 注意：本项目刻意收录固件与 via.json =====
-# 见 docs/11-版权声明.md。不要用 *.bin 通配符把它们排除掉。
+# ============================================================================
+# Weikav MAX102 — 仓库只收录三样东西
+# ============================================================================
+#
+#   1. firmware/   原厂固件 + 已发布的补丁固件
+#   2. web/        配置工具（单文件网页 + 设备定义 + 出厂键位）
+#   3. dist/       打包好的 exe
+#
+# 分析文档、反编译产物、脚本、临时文件**一律不入库**。
+# 这样 clone 下来只有 1 MB 出头，能直接拿去刷机和用。
+#
+# 想让分析文档也公开 → 另开一个仓库，别混在这里。
+#
+# ============================================================================
+
+# ===== 分析文档（不入库）=====
+docs/
+
+# ===== 各类脚本 / 工具源码（不入库）=====
+tools/
+scripts/
+patch-sdk/
+launcher/
+kb/
+rea/
+
+# ===== 厂家原始资料包 =====
+MAX102json/
+MAX102json.zip
 
 # ===== Python =====
 __pycache__/
@@ -8,6 +35,11 @@ __pycache__/
 .venv/
 venv/
 env/
+
+# ===== Node（曾用于构建 Web 工具，现不需要）=====
+node_modules/
+package.json
+package-lock.json
 
 # ===== 编辑器 / 系统 =====
 .vscode/
@@ -18,23 +50,7 @@ env/
 Thumbs.db
 desktop.ini
 
-# ===== 工具下载物 / 本地产物 =====
-*.zip
-*.tar.gz
-wb32-dfu-updater*/
-wb_dfu_usb_driver*/
-libusb-1.0.dll
-openocd*.cfg
-
-# ===== 临时 / 本地产物统一目录 =====
-# temp/ 里放：探测输出、EEPROM 备份、Ghidra 反编译产物、一次性脚本
-temp/
-
-# ===== 运行时生成的配置备份（含本机信息）=====
-backup_*.json
-max102_info.json
-
-# ===== Ghidra 反编译产物（可自行生成，不收录）=====
+# ===== Ghidra / 反编译产物 =====
 ghidra_out/
 ghidra_proj/
 decompiled_all.c
@@ -43,18 +59,25 @@ functions.txt
 *.gpr
 *.rep
 
-# ===== 逻辑分析仪 / 抓包数据 =====
+# ===== 逻辑分析仪 / 抓包 =====
 *.sal
 *.sr
 *.logicdata
 *.pcapng
 
-# ===== 第三方工具（只作本地参考，不随仓库分发）=====
-# 例：WirelessDeviceBatteryMonitor / mouse-battery-gpui（31MB，别人写的）
-# 只屏蔽根目录与本仓工具目录里的二进制，避免误伤源码
-/*.exe
-/*.msi
-/*.dll
+# ===== 本地临时物 =====
+temp/
+*.zip
+*.tar.gz
+wb32-dfu-updater*/
+wb_dfu_usb_driver*/
+libusb-1.0.dll
+openocd*.cfg
 
-# ===== 官方资料包（厂家发布，保留以便溯源）=====
-MAX102json.zip
+# ===== 运行时生成的配置备份（含本机信息）=====
+backup_*.json
+max102_info.json
+
+# ===== 构建中间产物 =====
+dist/_build/
+build_exe.cmd

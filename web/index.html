@@ -38,12 +38,24 @@ button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 button.primary:hover:not(:disabled){background:#3f8ae8}
 button.danger{border-color:#f2617a55;color:var(--err)}
 
-main{display:grid;grid-template-columns:260px 1fr;gap:0;height:calc(100vh - 57px)}
+main{
+  display:grid;
+  /* 侧栏固定宽度；主区占剩下的全部 */
+  grid-template-columns:260px minmax(0,1fr);
+  height:calc(100vh - 57px);
+}
 aside{
   background:var(--panel);border-right:1px solid var(--line);
   padding:16px;overflow-y:auto;
 }
-section.content{padding:20px;overflow-y:auto}
+section.content{
+  padding:20px;
+  overflow:auto;
+  /* 内容不够宽时不撑出横向滚动 */
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
 
 .panel{
   background:var(--panel);border:1px solid var(--line);border-radius:10px;
@@ -71,14 +83,41 @@ section.content{padding:20px;overflow-y:auto}
 .kv span:last-child{font-variant-numeric:tabular-nums}
 
 /* 键盘 */
-.kb{position:relative;padding:18px 0;overflow-x:auto}
-.kb-row{display:flex;height:52px;align-items:flex-start}
+/* 键盘缩放工具条 */
+.kb-bar{
+  display:flex;align-items:center;gap:6px;margin-bottom:6px;
+  font-size:12px;color:var(--dim);
+}
+.kb-bar .kb-hint{margin-right:auto;font-size:11.5px;opacity:.75}
+.zoom-btn{
+  background:var(--panel2);border:1px solid var(--line);color:var(--fg);
+  width:26px;height:24px;border-radius:6px;cursor:pointer;font-size:14px;
+  line-height:1;padding:0;display:flex;align-items:center;justify-content:center;
+}
+.zoom-btn:hover{background:#2f343f;border-color:#4a5160}
+#zoomFit{width:auto;padding:0 9px;font-size:12px}
+.zoom-val{
+  min-width:42px;text-align:center;font-variant-numeric:tabular-nums;
+  color:var(--accent);font-size:12px;
+}
+
+/* 键盘：容器自适应，键位按 UNIT 缩放 */
+.kb{
+  position:relative;
+  padding:18px 0;
+  /* 宽度交给 JS 算出的键盘实际宽，不强行撑满 */
+  margin:0 auto;
+  /* 极窄窗口下允许横向滚动，而不是把键压成一条缝 */
+  overflow-x:auto;
+  overflow-y:hidden;
+}
 .key{
   position:absolute;display:flex;align-items:center;justify-content:center;
   background:var(--panel2);border:1px solid var(--line);border-radius:6px;
   font-size:11px;color:var(--fg);cursor:pointer;user-select:none;
   transition:.1s;overflow:hidden;text-align:center;line-height:1.15;
   padding:2px 3px;
+  font-size:var(--key-font, 11px);
 }
 .key:hover{border-color:var(--accent);background:#2c3442}
 .key.active{border-color:var(--accent);box-shadow:0 0 0 2px #4f9cf955}
@@ -86,7 +125,7 @@ section.content{padding:20px;overflow-y:auto}
   background:#1e3a34;border-color:var(--accent2);color:var(--accent2);
 }
 .key.absent{background:transparent;border:1px dashed #33384444;color:#444}
-.key .lbl{font-size:10.5px;word-break:break-all}
+.key .lbl{font-size:var(--key-font,10.5px);word-break:break-word;overflow-wrap:anywhere}
 
 /* 层 */
 .layer-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
@@ -95,6 +134,35 @@ section.content{padding:20px;overflow-y:auto}
   border:1px solid var(--line);cursor:pointer;font-size:12.5px;
 }
 .layer-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* 层标签：名字 + 锁图标 */
+.layer-tab{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 8px 6px 12px;
+}
+.layer-tab .layer-name{cursor:pointer}
+.layer-tab .layer-lock{
+  cursor:pointer;font-size:11px;opacity:.65;
+  padding:1px 3px;border-radius:4px;
+}
+.layer-tab .layer-lock:hover{opacity:1;background:#ffffff1a}
+.layer-tab.locked{border-style:dashed}
+.layer-tab.writable .layer-lock{opacity:.9}
+.layer-tab.layer-global{
+  padding:6px 11px;color:var(--dim);font-size:12px;
+}
+.layer-tab.layer-global:hover{color:var(--fg)}
+
+/* 只读提示条 */
+.lock-banner{
+  display:none;
+  align-items:center;gap:8px;
+  padding:9px 13px;margin-bottom:10px;
+  background:#f5a52418;border:1px solid #f5a52455;border-radius:8px;
+  color:var(--warn);font-size:12.5px;
+}
+.lock-banner .lock-icon{font-size:14px}
+.lock-banner b{color:var(--warn)}
 
 /* 灯效控件 */
 .row{display:flex;align-items:center;gap:8px}
@@ -215,6 +283,7 @@ input[type=text]{
       <input type="color" id="rgbColor" value="#00ff88" disabled>
       <span class="num" id="rgbColorV">--</span>
     </div>
+    <div class="hint" id="rgbColorHint" style="margin-top:6px;font-size:11.5px;line-height:1.5"></div>
   </div>
 
   <div class="panel">
@@ -226,6 +295,51 @@ input[type=text]{
   </div>
 
   <div class="panel">
+    <h2>按键音效</h2>
+    <div class="row" style="margin-bottom:10px">
+      <label style="width:auto;flex:1">启用</label>
+      <input type="checkbox" id="soundOn" style="accent-color:var(--accent);width:16px;height:16px">
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <label>音量</label>
+      <input type="range" id="soundVol" min="0" max="100" value="30">
+      <span class="num" id="soundVolV">30</span>
+    </div>
+    <div class="row">
+      <label>音阶</label>
+      <select id="soundMode">
+        <option value="2">五声音阶（好听）</option>
+        <option value="1">半音阶</option>
+        <option value="3">随机</option>
+      </select>
+    </div>
+    <div class="hint" style="margin-top:8px;font-size:11.5px">
+      实时合成，不需要音频文件。按底行是低音、顶行是高音。
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>按键说明</h2>
+    <div class="hint" style="font-size:11.5px;line-height:1.7">
+      <p style="margin:0 0 8px">
+        <b style="color:var(--accent2)">可以拦：</b><br>
+        F1–F4、F6–F10、F11（全屏也拦）、Escape、
+        字母/数字/符号 —— 这些会高亮 + 音效，不触发浏览器行为。
+      </p>
+      <p style="margin:0 0 8px">
+        <b style="color:var(--warn)">拦不住（浏览器自己先处理）：</b><br>
+        F5 / Ctrl+R 刷新、F12 / Ctrl+Shift+I 开发者工具、
+        Ctrl+F 查找、Ctrl+W 关标签页。
+      </p>
+      <p style="margin:0">
+        <b style="color:var(--err)">永远看不到：</b><br>
+        <b>FN</b> 键。它由键盘固件内部处理（切层、调亮度音量），
+        根本不会向电脑发送任何信号，所以任何软件都收不到。
+      </p>
+    </div>
+  </div>
+
+  <div class="panel">
     <h2>日志</h2>
     <div class="log" id="log"></div>
   </div>
@@ -233,6 +347,17 @@ input[type=text]{
 
 <section class="content">
   <div class="layer-tabs" id="layerTabs"></div>
+  <div class="lock-banner" id="lockBanner">
+    <span class="lock-icon">🔒</span>
+    <span>当前层为<b>只读</b>。点层标签上的锁图标可解锁后修改。</span>
+  </div>
+  <div class="kb-bar">
+    <span class="kb-hint">Ctrl + 滚轮可缩放  ·  FN 键不在软件层面可见</span>
+    <button class="zoom-btn" id="zoomOut" title="缩小">−</button>
+    <span class="zoom-val" id="zoomVal">100%</span>
+    <button class="zoom-btn" id="zoomIn" title="放大">+</button>
+    <button class="zoom-btn" id="zoomFit" title="恢复自适应">自适应</button>
+  </div>
   <div class="kb" id="kb"></div>
 </section>
 </main>
@@ -261,14 +386,14 @@ input[type=text]{
 "use strict";
 
 // ────────────────────────────────────────────── 常量
-const REPORT_SIZE = 33;
+const REPORT_SIZE = 33;          // hidapi 侧（含 report id 占位）的总长；WebHID 侧按实际描述符算
 const CMD = {
   GET_PROTOCOL_VERSION: 1,
   GET_KEYBOARD_VALUE: 2,
   SET_KEYBOARD_VALUE: 3,
   GET_KEYCODE: 4,
   SET_KEYCODE: 5,
-  GET_BATTERY: 6,
+  GET_BATTERY: 20,
   BACKLIGHT_SET: 7,
   BACKLIGHT_GET: 8,
   BACKLIGHT_SAVE: 9,
@@ -284,8 +409,9 @@ const CMD = {
   KEYMAP_SET_BUFFER: 19,
 };
 
-// 官方 usevia.app 确认：枚举里 cmd 6 被跳过（5 -> 7），
-// 所以补丁占用 cmd 6 不与官方驱动冲突。
+// 电量补丁只**新增** cmd 20（0x14），原厂 cmd 1-19 一个字节都没改。
+// cmd 20 在原厂属于越界命令（>0x12 直接回 0xFF），占用它不影响任何现有功能。
+// 详见 docs/08-电量补丁方案.md 与 patch-sdk/patches/battery/
 const RGB_CHANNEL = 3;           // menus 的 channel 号
 const RGB_ID = {                 // (channel, id, value-index)
   BRIGHTNESS:   [RGB_CHANNEL, 1, 1],
@@ -293,15 +419,27 @@ const RGB_ID = {                 // (channel, id, value-index)
   EFFECT_SPEED: [RGB_CHANNEL, 3, 3],
   COLOR:        [RGB_CHANNEL, 4, 4],
 };
+// 灯效名称。值 = 固件真正支持的效果子集（见 docs/09-VIA协议.md §4）
+// 官方 JSON 里只有英文，这里全转中文（后面括号里保留原名方便对照 QMK）
 const RGB_EFFECTS = [
-  [0,"All Off 全关"], [2,"Alphas Mods"], [5,"Breathing 呼吸"],
-  [6,"Band Sat"], [9,"Band Pinwheel Val"], [13,"Cycle Left Right"],
-  [15,"Rainbow Moving Chevron"], [16,"Cycle Out In"],
-  [24,"Jellybean Raindrops"], [25,"Hue Breathing 色相呼吸"],
-  [26,"Hue Pendulum 色相摆动"], [29,"Pixel Flow"],
-  [30,"Pixel Fractal"], [33,"Solid Reactive Simple"],
-  [34,"Solid Reactive"], [35,"Solid Reactive Wide"],
-  [43,"Solid Splash"], [45,"Close All"],
+  [0,  "全关 (All Off)"],
+  [2,  "字母区亮 (Alphas Mods)"],
+  [5,  "呼吸 (Breathing)"],
+  [6,  "色带饱和 (Band Sat)"],
+  [9,  "色带风车亮度 (Band Pinwheel Val)"],
+  [13, "左右循环 (Cycle Left Right)"],
+  [15, "彩虹人字移动 (Rainbow Moving Chevron)"],
+  [16, "由外向内循环 (Cycle Out In)"],
+  [24, "彩虹糖雨滴 (Jellybean Raindrops)"],
+  [25, "色相呼吸 (Hue Breathing)"],
+  [26, "色相摆动 (Hue Pendulum)"],
+  [29, "像素流动 (Pixel Flow)"],
+  [30, "像素分数形 (Pixel Fractal)"],
+  [33, "单色响应·简 (Solid Reactive Simple)"],
+  [34, "单色响应 (Solid Reactive)"],
+  [35, "单色响应·宽 (Solid Reactive Wide)"],
+  [43, "单色飞溅 (Solid Splash)"],
+  [45, "全部收拢 (Close All)"],
 ];
 
 const VENDOR_ID = 0x342D;
@@ -326,12 +464,15 @@ const KEYCODE_GROUPS = [
     [0x004B,"PGUP"], [0x004C,"DEL"], [0x004D,"END"],
     [0x004E,"PGDN"], [0x004F,"RGHT 右"], [0x0050,"LEFT 左"],
     [0x0051,"DOWN 下"], [0x0052,"UP 上"], [0x0053,"NUM 数字锁"],
+    // 小键盘：注意顺序，QMK 的编号不是按数字排的
+    //   0x54=/  0x55=*  0x56=-  0x57=+  0x58=Enter  0x67==
+    //   0x59..0x61 = 1..9   0x62=0   0x63=.
     [0x0054,"PSLS 小键盘/"], [0x0055,"PAST 小键盘*"],
     [0x0056,"PMNS 小键盘-"], [0x0057,"PPLS 小键盘+"],
-    [0x0058,"PENT 小键盘回车"], [0x0062,"P1"], [0x0063,"P2"],
-    [0x0064,"P3"], [0x0065,"P4"], [0x0066,"P5"], [0x0067,"P6"],
-    [0x0068,"P7"], [0x0069,"P8"], [0x006A,"P9"], [0x006B,"P0"],
-    [0x006C,"PDOT 小键盘."], [0x006D,"PSLS"],
+    [0x0058,"PENT 小键盘回车"], [0x0059,"P1"], [0x005A,"P2"],
+    [0x005B,"P3"], [0x005C,"P4"], [0x005D,"P5"], [0x005E,"P6"],
+    [0x005F,"P7"], [0x0060,"P8"], [0x0061,"P9"], [0x0062,"P0"],
+    [0x0063,"PDOT 小键盘."],
   ]},
   { name:"字母", items:
     Array.from({length:26},(_,i)=>[0x04+i, String.fromCharCode(65+i)])
@@ -380,6 +521,20 @@ const KEYCODE_GROUPS = [
     [0x7E04,"USB"], [0x7E05,"WHITE 白灯测试"],
     [0x7E06,"BATQ 查电量"], [0x7E07,"NOSEC 免密钥配对"],
     [0x7E08,"REC 灯效录制"],
+    // 0x7E09/0x7E0A 厂家在 via.json 里**没声明**，
+    // 但反汇编和实际键位里都存在。
+    // docs/03 记载 0x7E09 是 FUN_0800417e = 切换主机通道。
+    [0x7E0A,"HOSTCH 切主机通道"],
+  ]},
+  // QMK 鼠标键码区 0x5200+。厂家在层 0/2 的右下角用了它。
+  { name:"鼠标键 (MS_*)", items:[
+    [0x5221,"MS_U 鼠标上"], [0x5222,"MS_D 鼠标下"],
+    [0x5223,"MS_L 鼠标左"], [0x5224,"MS_R 鼠标右"],
+    [0x5225,"MS_BTN1 左键"], [0x5226,"MS_BTN2 右键"],
+    [0x5227,"MS_BTN3 中键"], [0x5228,"MS_WHLU 滚上"],
+    [0x5229,"MS_WHLD 滚下"], [0x522A,"MS_WHLL 滚左"],
+    [0x522B,"MS_WHLR 滚右"], [0x522C,"MS_ACL0 加速0"],
+    [0x522D,"MS_ACL1 加速1"], [0x522E,"MS_ACL2 加速2"],
   ]},
   { name:"灯效 (UG_*)", items:[
     [0x7820,"UG_TOGG 总开关"], [0x7821,"UG_NEXT 下一效果"],
@@ -395,17 +550,113 @@ const KEYCODE_GROUPS = [
 let device = null;
 let layers = 5;
 let currentLayer = 0;
+
+const MAX_LAYERS_JS = 8;
+
+// 当前显示的是否为“出厂快照预览”（未连接设备）
+let previewMode = false;
+
+// ────────────────────────────────────────────── 层锁
+//
+// 为什么不全部可写
+// --------------
+//   - 层 0 是日常使用的主层，改错了键盘就不好用了
+//   - 层 4 是 BOOT 层（藏着 FN+RShift+ESC 进 DFU 的组合），
+//     改掉就**无法进入刷机模式** —— 这是硬写死的救援通道
+//   - FN 层（1/3）是厂家预设的快捷键，改错了很多功能就找不到
+//
+// 所以默认策略：**全部只读**，用户可逐层解锁。
+// 解锁状态存 localStorage，刷新不丢。
+//
+// 也可以整体“解锁全部”，但会弹确认提示。
+const LOCKABLE = true;
+
+function loadUnlocked(){
+  try {
+    const raw = localStorage.getItem("max102_unlocked_layers");
+    if (!raw) return new Set();          // 默认全锁
+    return new Set(JSON.parse(raw));
+  } catch(_){
+    return new Set();
+  }
+}
+
+function saveUnlocked(set){
+  try {
+    localStorage.setItem("max102_unlocked_layers", JSON.stringify([...set]));
+  } catch(_){}
+}
+
+let unlockedLayers = loadUnlocked();
+
+function isLayerWritable(L){
+  if (!LOCKABLE) return true;
+  return unlockedLayers.has(L);
+}
+
+function toggleLayerLock(L){
+  if (unlockedLayers.has(L)) unlockedLayers.delete(L);
+  else unlockedLayers.add(L);
+  saveUnlocked(unlockedLayers);
+  renderLayerTabs();
+  renderKeyboard();
+  syncWriteAvailability();
+}
+
+function unlockAllLayers(){
+  for (let i=0;i<layers;i++) unlockedLayers.add(i);
+  saveUnlocked(unlockedLayers);
+  renderLayerTabs();
+  renderKeyboard();
+  syncWriteAvailability();
+}
+
+function lockAllLayers(){
+  unlockedLayers.clear();
+  saveUnlocked(unlockedLayers);
+  renderLayerTabs();
+  renderKeyboard();
+  syncWriteAvailability();
+}
 let keymap = {};          // {layer: [[code,...],...]}
-let geo = [];             // 几何: {row,col,label,x,y,w,h}
+let geo = [];             // 几何: {row,col,label,x,y,w,h}（单位：u）
 let changed = new Set();  // "layer:row:col"
 let battTimer = null;
+let UNIT = 42;            // 当前 1u 的像素宽，由 fitKeyboard() 根据容器宽度计算
+const GAP = 4;            // 键间隙（像素）
 
 // ────────────────────────────────────────────── VIA 协议
 class ViaDevice {
   constructor(hidDevice){
     this.dev = hidDevice;
     this.seq = 0;
+    this.outLen = 32;      // 由报告描述符实算，create() 里刷新
+    this.inLen = 32;
   }
+
+  // 从 HIDDevice.collections 算出真实报告字节数
+  // ⚠️ WebHID 里 item.reportSize 的单位是 **位（bit）**，不是字节。
+  //    32 字节 = reportSize 8 × reportCount 32 = 256 bit。
+  //    早期版本忘了除 8，算出 256B 直接发送 → NotAllowedError。
+  static reportBytes(dev, kind){
+    for (const c of (dev.collections || [])){
+      const reports = kind === "out" ? c.outputReports : c.inputReports;
+      for (const r of (reports || [])){
+        let bits = 0;
+        for (const i of (r.items || []))
+          bits += (i.reportSize || 0) * (i.reportCount || 0);
+        if (bits > 0) return Math.ceil(bits / 8);
+      }
+    }
+    return 0;
+  }
+
+  static isVia(dev){
+    return (dev.collections || []).some(
+      c => c.usagePage === USAGE_PAGE && c.usage === 0x61);
+  }
+
+  /** 弹出授权框，并严格挑出 VIA 接口 */
   static async request(){
     const devs = await navigator.hid.requestDevice({
       filters: [
@@ -414,11 +665,39 @@ class ViaDevice {
       ]
     });
     if (!devs.length) throw new Error("未选择设备");
-    return devs[0];
+
+    // ⚠️ 关键：浏览器可能把同一 PID 的多个 HID 集合都返回（键盘/鼠标/消费者/VIA），
+    //   直接 devs[0] 很可能选到键盘接口 → sendReport 报
+    //   NotAllowedError: Failed to write the report。
+    //   必须按 usagePage/usage 挑出真正的 VIA 集合。
+    const via = devs.find(ViaDevice.isVia);
+    if (!via){
+      const seen = devs.map(d => (d.collections||[])
+        .map(c => `0x${c.usagePage.toString(16)}/0x${c.usage.toString(16)}`)
+        .join(",")).join(" | ");
+      throw new Error("选中的不是 VIA 接口（期望 0xff60/0x61）。实际：" + seen);
+    }
+    return via;
   }
+
+  /** 打开后取真实报告长度（算不出时回退 32，已实测可用） */
+  initLengths(){
+    const o = ViaDevice.reportBytes(this.dev, "out");
+    const i = ViaDevice.reportBytes(this.dev, "in");
+    this.outLen = o > 0 ? o : 32;
+    this.inLen  = i > 0 ? i : 32;
+  }
+
   async send(bytes){
-    const buf = new Uint8Array(REPORT_SIZE);
-    buf.set(bytes);
+    // 设备描述符无 Report ID 项，输入/输出均 32 字节（实测）：
+    //   75 08 95 20 81 02 → input  32B
+    //   75 08 95 20 91 02 → output 32B
+    // WebHID 的 sendReport(id, data) 要求 data 长度**正好等于**报告字节数。
+    // 诊断页实测：len=32 成功，len=33/64 报 NotAllowedError。
+    // 调用方习惯传 [0, cmd, ...]（0 是 hidapi 的 report id 占位）→ 去掉它。
+    const src = (bytes.length && bytes[0] === 0) ? bytes.slice(1) : bytes;
+    const buf = new Uint8Array(this.outLen);   // ← 用实算长度，不写死 32
+    buf.set(src.slice(0, this.outLen));
     await this.dev.sendReport(0, buf);
     return await this.recv();
   }
@@ -429,6 +708,7 @@ class ViaDevice {
         if (done) return;
         done = true;
         this.dev.removeEventListener("inputreport", onData);
+        // e.data 是 DataView：不含 report id（本设备无 ID），就是 32 字节响应
         resolve(new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength));
       };
       this.dev.addEventListener("inputreport", onData);
@@ -443,7 +723,8 @@ class ViaDevice {
   async protocolVersion(){
     const r = await this.send([0, CMD.GET_PROTOCOL_VERSION]);
     if (!r) return -1;
-    return (r[1]<<8) | r[2];
+    // 响应布局: [cmd][0x00][version]  → 实测 01 00 0c = v12
+    return r[2];
   }
   async layerCount(){
     const r = await this.send([0, CMD.GET_LAYER_COUNT]);
@@ -467,7 +748,7 @@ class ViaDevice {
   }
   async getBattery(){
     const r = await this.send([0, CMD.GET_BATTERY]);
-    if (!r) return null;
+    if (!r || r[0] !== CMD.GET_BATTERY) return null;
     return {
       battery: r[4], state: r[5],
       moduleVersion: r[6], indicator: r[7],
@@ -476,12 +757,26 @@ class ViaDevice {
   async bootloader(){
     await this.send([0, CMD.BOOTLOADER]);
   }
-  // 灯效：cmd 7/8 + channel 3
-  async getBacklight(id, nbytes=1){
-    const r = await this.send([0, CMD.BACKLIGHT_GET, RGB_CHANNEL, id, nbytes]);
-    if (!r) return null;
-    // 响应从 channel 长度之后开始
-    return Array.from(r.slice(4, 4 + nbytes));
+  // 灯效：cmd 7=写 / cmd 8=读，channel 3
+  //
+  // ⚠️⚠️ 两个必须记住的坑（都实际踩过）：
+  //   1) 命令码 7=SET、8=GET。拿 7 当查询用 = **把参数写进固件**。
+  //      曾经因此把亮度/速度/颜色全写成 0，键盘直接不亮了。
+  //   2) 响应数据在 **r[3]**，不是 r[4]。
+  //      响应布局是 [cmd][channel][id][data...]，只有三段头，
+  //      跟 cmd 18 (keymap) 的 [cmd][00][off_hi][off_lo][data...] 不一样。
+  async getBacklight(id, nbytes=1, tries=6){
+    for (let i = 0; i < tries; i++){
+      const r = await this.send([0, CMD.BACKLIGHT_GET, RGB_CHANNEL, id, nbytes]);
+      if (!r) continue;
+      // 线上会混进无关报文（固件定期推的电量包 14 00 00 00 64 ...），
+      // 只要响应头三个字节不全对上，就丢弃重试。
+      if (r[0] !== CMD.BACKLIGHT_GET || r[1] !== RGB_CHANNEL || r[2] !== id){
+        continue;
+      }
+      return Array.from(r.slice(3, 3 + nbytes));
+    }
+    return null;
   }
   async setBacklight(id, bytes){
     await this.send([0, CMD.BACKLIGHT_SET, RGB_CHANNEL, id, ...bytes]);
@@ -512,25 +807,33 @@ function toast(msg, cls){
 }
 
 // ────────────────────────────────────────────── 几何布局
-const UNIT = 42;   // 1u 的像素宽度
-const GAP  = 4;
+const UNIT_DEFAULT = 42;  // 兜底值；实际由 fitKeyboard() 算
 
 function buildGeometry(keymapLayout){
   const keys = [];
+  // ⚠️ KLE 语义要点（踩过坑）：
+  //   - y 属性是「**行偏移**」，不是绝对坐标。而每行默认 y = ri。
+  //     所以 {"y": 0.5} 开头那行会被放到 ri + 0.5 行，
+  //     导致它和上一行、下一行各重叠 0.5 行 → 32 对键丸在一起。
+  //   - 标准 KLE 的 y 只用于真正的错位行（如小键盘 + 号键）。
+  //     本键盘的 {"y":0.5} 是错的，必须忽略。
+  //   - h:2 的键（右 Enter / 右 Shift 那两段）要用**矩阵行号**定位。
+  //
+  // 坐标单位统一用 **u**（1u = 一个标准键宽），像素换算在 renderKeyboard 里做。
   keymapLayout.forEach((row, ri)=>{
-    let x = 0, y = ri * 1.0;
+    let x = 0;
+    const y = ri;             // ← 每行固定用行号，不被该行的 y 属性推动
     let w = 1, h = 1;
     for (const item of row){
       if (typeof item === "object" && item !== null){
         if (item.x !== undefined){ x += item.x; }
-        if (item.y !== undefined){ y += item.y; }
         if (item.w !== undefined){ w = item.w; }
         if (item.h !== undefined){ h = item.h; }
+        // 注意：故意不处理 item.y（见上方注释）
         continue;
       }
       const [r,c] = item.split(",").map(Number);
-      keys.push({ row:r, col:c, x:x*UNIT, y:y*UNIT,
-                  w:w*UNIT-GAP, h:h*UNIT-GAP, label:"" });
+      keys.push({ row:r, col:c, x, y, w, h, label:"" });   // 全部以 u 存
       x += w;
       w = 1; h = 1;
     }
@@ -538,23 +841,118 @@ function buildGeometry(keymapLayout){
   return keys;
 }
 
+// 根据容器宽度算出最合适的 1u 像素宽（自适应缩放）
+// 键盘在布局坐标里的总尺寸（单位 u）
+function keyboardExtent(){
+  let maxX = 0, maxY = 0;
+  for (const k of geo){
+    maxX = Math.max(maxX, k.x + k.w);
+    maxY = Math.max(maxY, k.y + k.h);
+  }
+  return { maxU: maxX, maxV: maxY };
+}
+
+/**
+ * 算出自适应缩放。**同时看宽和高**：
+ * 只看宽的话，窄高窗口（比如分屏）会把键盘撑出竖向滚动。
+ *
+ * 优先级：用户手动值 > 自动值
+ */
+function computeFit(){
+  const kb = document.getElementById("kb");
+  const host = kb && kb.parentElement;           // section.content
+  if (!kb || !host || !geo.length) return UNIT_DEFAULT;
+
+  const { maxU, maxV } = keyboardExtent();
+  const cs = getComputedStyle(kb);
+  const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+
+  // 可用宽：优先用父容器（否则 kb 自己宽度取决于内容，会形成循环）
+  const availW = host.clientWidth - 40 - padX;      // 40 = section.content 左右 padding
+  // 可用高：父容器高度 - 层标签等占位（粗估 90px）
+  const availH = host.clientHeight - 90 - padY;
+
+  const byW = maxU > 0 ? (availW * 0.99) / maxU : UNIT_DEFAULT;
+  const byH = maxV > 0 && availH > 120 ? (availH * 0.99) / maxV : Infinity;
+
+  const ideal = Math.min(byW, byH);
+  const auto = Math.max(16, Math.min(110, Math.floor(ideal)));
+
+  // 手动缩放（Ctrl+滚轮 / 按钮），存在 localStorage
+  const manual = parseFloat(localStorage.getItem("max102_unit") || "0");
+  return manual > 0 ? Math.max(10, Math.min(220, manual)) : auto;
+}
+
+function fitKeyboard(){
+  UNIT = computeFit();
+  return UNIT;
+}
+
+// Ctrl + 滚轮 / 工具栏按钮 手动缩放
+function setUnit(u){
+  UNIT = Math.max(10, Math.min(220, Math.round(u)));
+  localStorage.setItem("max102_unit", String(UNIT));
+  renderKeyboard();
+}
+function resetUnit(){
+  localStorage.removeItem("max102_unit");
+  renderKeyboard();
+}
+/** 按比例缩放（基于当前实际像素） */
+function zoomBy(factor){
+  const cur = UNIT || fitKeyboard();
+  setUnit(cur * factor);
+}
+
+/** 把当前 UNIT 换算成“相对自适应基准”的百分比显示 */
+function autoUnit(){
+  const saved = parseFloat(localStorage.getItem("max102_unit") || "0");
+  const keep = saved;
+  localStorage.removeItem("max102_unit");
+  const base = computeFit();
+  if (keep > 0) localStorage.setItem("max102_unit", String(keep));
+  return base;
+}
+
+function updateZoomLabel(){
+  const el = document.getElementById("zoomVal");
+  if (!el) return;
+  const base = autoUnit();
+  const pct = base > 0 ? Math.round((UNIT / base) * 100) : 100;
+  el.textContent = pct + "%";
+  el.title = `1u = ${UNIT}px（自适应基准 ${base}px）`;
+}
+
 // ────────────────────────────────────────────── 渲染键盘
 function renderKeyboard(){
   const kb = document.getElementById("kb");
   kb.innerHTML = "";
 
-  const maxX = Math.max(...geo.map(k=>k.x + k.w)) + 20;
-  const maxY = Math.max(...geo.map(k=>k.y + k.h)) + 20;
-  kb.style.minWidth = maxX + "px";
-  kb.style.height = maxY + "px";
+  fitKeyboard();                  // ← 先算自适应缩放
+
+  const { maxU, maxV } = keyboardExtent();
+  const wPx = Math.round(maxU * UNIT);
+  const hPx = Math.round(maxV * UNIT);
+
+  // 键盘盒子按实际尺寸定宽高，并水平居中（margin:0 auto 在 CSS 里）
+  kb.style.width  = wPx + "px";
+  kb.style.height = (hPx + 20) + "px";
+  kb.style.minWidth = "0";
+
+  // 字号随键大小缩放（用 CSS 变量，键内文字统一跟随）
+  kb.style.setProperty("--key-font", Math.max(8, Math.round(UNIT * 0.27)) + "px");
+  kb.style.setProperty("--key-font-sm", Math.max(7, Math.round(UNIT * 0.21)) + "px");
 
   for (const k of geo){
     const el = document.createElement("div");
     el.className = "key";
-    el.style.left = k.x + "px";
-    el.style.top = k.y + "px";
-    el.style.width = k.w + "px";
-    el.style.height = k.h + "px";
+    el.style.left   = Math.round(k.x * UNIT) + "px";
+    el.style.top    = Math.round(k.y * UNIT) + "px";
+    // 间隙随缩放变化，但不超过键宽的 1/4
+    const gap = Math.min(GAP, Math.round(k.w * UNIT * 0.18));
+    el.style.width  = Math.round(k.w * UNIT - gap) + "px";
+    el.style.height = Math.round(k.h * UNIT - gap) + "px";
 
     const code = keymap[currentLayer]?.[k.row]?.[k.col];
     const key = `${currentLayer}:${k.row}:${k.col}`;
@@ -571,6 +969,8 @@ function renderKeyboard(){
     }
     kb.appendChild(el);
   }
+
+  updateZoomLabel();
 }
 
 function keycodeName(code){
@@ -595,20 +995,133 @@ function keycodeFull(code){
 function renderLayerTabs(){
   const el = document.getElementById("layerTabs");
   el.innerHTML = "";
-  const names = ["层 0 基础","层 1 FN","层 2 基础2","层 3 FN2","层 4 BOOT"];
+  // 层名的来历（实测 keymap 差异，不是猜的）：
+  //   层 0 和层 2 是**同一套键位**，只差 3 个键：
+  //     行5 列1/2：层0 = LGUI + LALT（Windows）
+  //                层2 = LALT + LGUI（Mac，两个键对调）
+  //     行5 列9：  层0 = 0x5221（鼠标上）  层2 = 0x5223（鼠标左）
+  //   所以它们其实是 **Win / Mac 两套修饰键布局**，不是“基础/基础2”。
+  const names = [
+    "层 0 Win",
+    "层 1 FN",
+    "层 2 Mac",
+    "层 3 FN2",
+    "层 4 BOOT",
+  ];
   for (let i=0;i<layers;i++){
-    const b = document.createElement("div");
-    b.className = "layer-tab" + (i===currentLayer ? " on" : "");
-    b.textContent = names[i] || `层 ${i}`;
-    b.onclick = ()=>{ currentLayer = i; renderLayerTabs(); renderKeyboard(); };
-    el.appendChild(b);
+    const writable = isLayerWritable(i);
+
+    const wrap = document.createElement("div");
+    wrap.className = "layer-tab" + (i===currentLayer ? " on" : "")
+                    + (writable ? " writable" : " locked");
+    wrap.title = writable
+      ? `层 ${i}：可写（点击标签上的锁图标可重新锁定）`
+      : `层 ${i}：只读（点击标签上的锁图标可解锁）`;
+
+    // 名字部分（点击切层）
+    const label = document.createElement("span");
+    label.className = "layer-name";
+    label.textContent = names[i] || `层 ${i}`;
+    label.onclick = ()=>{ currentLayer = i; renderLayerTabs(); renderKeyboard(); syncWriteAvailability(); };
+    wrap.appendChild(label);
+
+    // 锁图标（点击切换）
+    const lock = document.createElement("span");
+    lock.className = "layer-lock";
+    lock.textContent = writable ? "\uD83D\uDD13" : "\uD83D\uDD12";
+    lock.title = writable ? "已解锁：可改键" : "只读：点击解锁";
+    lock.onclick = (e)=>{ e.stopPropagation(); toggleLayerLock(i); };
+    wrap.appendChild(lock);
+
+    el.appendChild(wrap);
   }
+
+  // 全局锁按钮
+  const all = document.createElement("div");
+  all.className = "layer-tab layer-global";
+  const anyLocked = [...Array(layers).keys()].some(i => !isLayerWritable(i));
+  all.textContent = anyLocked ? "\u5168\u90E8\u89E3\u9501" : "\u5168\u90E8\u9501\u5B9A";
+  all.onclick = ()=>{
+    if (anyLocked){
+      const ok = confirm(
+        "\u5373\u5C06\u89E3\u9501\u6240\u6709\u5C42\uFF0C\u5305\u62EC\uFF1A\n\n" +
+        "  \u00b7 \u5C42 0  \u2014\u2014 \u65E5\u5E38\u4E3B\u5C42\uFF0C\u6539\u9519\u5F71\u54CD\u6253\u5B57\n" +
+        "  \u00b7 \u5C42 4  \u2014\u2014 BOOT \u5C42\uFF0C\u6539\u6389\u5C31**\u65E0\u6CD5\u8FDB\u5165\u5237\u673A\u6A21\u5F0F**\n\n" +
+        "\u771F\u8981\u5168\u90E8\u89E3\u9501\u5417\uFF1F");
+      if (!ok) return;
+      unlockAllLayers();
+    } else {
+      lockAllLayers();
+    }
+  };
+  el.appendChild(all);
+
+  // “对比层”按钮：弹出当前层与另一层的差异
+  const cmp = document.createElement("div");
+  cmp.className = "layer-tab layer-global";
+  cmp.textContent = "对比层";
+  cmp.title = "找出两个层的键位差异";
+  cmp.onclick = showLayerDiff;
+  el.appendChild(cmp);
+}
+
+// 列出当前层与其它层的差异。
+// 厂家把层0/层2 做成了 Win/Mac 双布局，只差几个键 ——
+// 不列出来用户会怀疑“是不是读错了”。
+function showLayerDiff(){
+  const a = currentLayer;
+  const others = [];
+  for (let L=0; L<layers; L++) if (L !== a) others.push(L);
+
+  const lines = [];
+  for (const b of others){
+    const diffs = [];
+    for (let r=0;r<6;r++){
+      for (let c=0;c<19;c++){
+        const x = keymap[a]?.[r]?.[c] ?? 0;
+        const y = keymap[b]?.[r]?.[c] ?? 0;
+        if (x !== y) diffs.push(`  (${r},${c})  ${keycodeName(x)||'无'} → ${keycodeName(y)||'无'}`);
+      }
+    }
+    lines.push(`层 ${a} vs 层 ${b}：${diffs.length} 处差异`);
+    if (diffs.length && diffs.length <= 12){
+      lines.push(...diffs);
+    } else if (diffs.length > 12){
+      lines.push(...diffs.slice(0, 12), `  ……共 ${diffs.length} 处`);
+    }
+    lines.push("");
+  }
+
+  const text = lines.join("\n");
+  // 写进日志面板，比 alert 好复制
+  for (const line of text.split("\n")){
+    if (line) log(line, "");
+  }
+  log(`层 ${a} 与其它层的差异已列在日志`, "ok");
+}
+
+// 根据当前层是否可写，同步所有写入控件的可用状态
+function syncWriteAvailability(){
+  const writable = isLayerWritable(currentLayer);
+  const banner = document.getElementById("lockBanner");
+  if (banner){
+    banner.style.display = writable ? "none" : "block";
+  }
+  // 选择器里的“写入”按钮也会读这个状态（见 openPicker）
 }
 
 // ────────────────────────────────────────────── 键位选择器
 let pickTarget = null;
 
 function openPicker(row, col){
+  // 只读层：不允许打开改键弹窗，直接说明原因
+  if (!isLayerWritable(currentLayer)){
+    toast(`层 ${currentLayer} 是只读的。点层标签上的 \uD83D\uDD12 解锁后再改。`, "er");
+    log(`拒绝写入：层 ${currentLayer} 处于锁定状态`, "er");
+    return;
+  }
+
+  // 预览模式（未连接）：可以打开看，但下面会拦写入
   pickTarget = { row, col };
   const code = keymap[currentLayer][row][col];
   document.getElementById("modalTitle").textContent =
@@ -657,6 +1170,22 @@ async function applyKeycode(code){
   if (!pickTarget) return;
   const { row, col } = pickTarget;
   closePicker();
+
+  // ── 三道闸门，一个都不能少 ─────────────────────
+  //
+  // 1) 层锁   —— 用户显式锁定/未解锁的层不写
+  // 2) 连接   —— 没有设备时无从“写”，但快照预览仍然可看
+  // 3) 预览模式 —— 显示的是出厂快照，写进去也不会写对
+  if (!isLayerWritable(currentLayer)){
+    log(`拒绝写入：层 ${currentLayer} 已锁定`, "er");
+    toast("该层已锁定，无法修改", "er");
+    return;
+  }
+  if (!device){
+    log("拒绝写入：未连接键盘（当前显示的是出厂快照）", "er");
+    toast("未连接键盘，只能预览", "er");
+    return;
+  }
 
   const key = `${currentLayer}:${row}:${col}`;
   const old = keymap[currentLayer][row][col];
@@ -727,6 +1256,382 @@ async function pollBattery(){
 // ────────────────────────────────────────────── 灯效
 let rgbBusy = false;
 
+// ────────────────────────────────── 按键高亮（按下时亮起来）
+//
+// ⚠️ 为什么不能用 WebHID 听按键：
+//   实测（在 2.4G 模式下） dongle 的键盘类 HID 节点（0x0001/0x06 等）
+//   **不向应用层上报 input report** —— 按键由 dongle 直接透传给系统，
+//   浏览器侧收不到。这跟接口被独占无关，是 dongle 的行为。
+//   所以只能退一步：**用本机键盘事件做可视反馈**。
+//   它按的是“你实际按下的键”，而不是“键盘上报的矩阵坐标”，
+//   但对“看看我该按哪个键 / 当前这个键映射成了什么”已经够用。
+
+// 浏览器 KeyboardEvent.key / code → VIA 键码（尽量覆盖常用的）
+const WEBKEY_TO_QMK = {
+  // 字母
+  ...Object.fromEntries(
+    "abcdefghijklmnopqrstuvwxyz".split("").map((c,i)=>
+      [c, 0x04 + i])),
+  // 数字排
+  "1":0x1E,"2":0x1F,"3":0x20,"4":0x21,"5":0x22,
+  "6":0x23,"7":0x24,"8":0x25,"9":0x26,"0":0x27,
+  // 符号
+  "-":0x2D,"=":0x2E,"[":0x2F,"]":0x30,"\\":0x31,
+  ";":0x33,"'":0x34,"`":0x35,",":0x36,".":0x37,"/":0x38,
+  // 控制键
+  "Escape":0x29,"Backspace":0x2A,"Tab":0x2B,"Enter":0x28,
+  " ":0x2C,"CapsLock":0x39,
+  "Shift":0xE1,"Control":0xE0,"Alt":0xE2,"Meta":0xE3,
+  // 功能键
+  "F1":0x3A,"F2":0x3B,"F3":0x3C,"F4":0x3D,"F5":0x3E,"F6":0x3F,
+  "F7":0x40,"F8":0x41,"F9":0x42,"F10":0x43,"F11":0x44,"F12":0x45,
+  // 编辑/导航
+  "Insert":0x49,"Delete":0x4C,"Home":0x4A,"End":0x4D,
+  "PageUp":0x4B,"PageDown":0x4E,
+  "PrintScreen":0x46,"ScrollLock":0x47,"Pause":0x48,
+  "ArrowRight":0x4F,"ArrowLeft":0x50,"ArrowDown":0x51,"ArrowUp":0x52,
+  // 小键盘（除去已在符号里定义过的 / 和 * ，避免重复键）
+  "NumLock":0x53,
+};
+
+// 用 code 做补充（左右修饰键、小键盘）
+const WEBCODE_TO_QMK = {
+  "ShiftLeft":0xE1,"ShiftRight":0xE5,
+  "ControlLeft":0xE0,"ControlRight":0xE4,
+  "AltLeft":0xE2,"AltRight":0xE6,
+  "MetaLeft":0xE3,"MetaRight":0xE7,
+  "Numpad0":0x62,"Numpad1":0x59,"Numpad2":0x5A,"Numpad3":0x5B,
+  "Numpad4":0x5C,"Numpad5":0x5D,"Numpad6":0x5E,
+  "Numpad7":0x5F,"Numpad8":0x60,"Numpad9":0x61,
+  "NumpadEnter":0x58,"NumpadAdd":0x57,"NumpadSubtract":0x56,
+  "NumpadMultiply":0x55,"NumpadDivide":0x54,"NumpadDecimal":0x63,
+  "NumpadEqual":0x67,
+};
+
+// 键码 → 页面上所有对应位置的 key 元素
+function keyElementsByCode(code){
+  const out = [];
+  for (const k of geo){
+    const c = keymap[currentLayer]?.[k.row]?.[k.col];
+    if (c === code){
+      const el = document.querySelector(
+        `.key[data-row="${k.row}"][data-col="${k.col}"]`);
+      if (el) out.push(el);
+    }
+  }
+  return out;
+}
+
+function onPhysicalKey(e, down){
+  // 在输入框里打字时不刷键盘图（否则没法搜索键码）
+  const tag = (e.target && e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select"){
+    if (!(e.key === "Escape")) return;
+  }
+  if (!geo.length) return;
+
+  const code = WEBCODE_TO_QMK[e.code] ?? WEBKEY_TO_QMK[e.key];
+  if (code === undefined) return;
+
+  // 高亮：按 keymap 内容匹配（能反映“这个键现在是什么功能”）
+  const els = keyElementsByCode(code);
+  for (const el of els){
+    if (down) el.classList.add("active");
+    else el.classList.remove("active");
+  }
+
+  // 音效：不能依赖 keymap。
+  //
+  // 未连接设备时 keymap 全是 0，keyElementsByCode(0x04) 返回空数组，
+  // 音效就永远不响。但这台键盘的按键事件本来也不经过 WebHID
+  // （dongle 的键盘端点不向应用层上报），所以音效只能靠本机键盘事件，
+  // 又必须能在“没连设备”时工作。
+  //
+  // 解法：按**物理键位索引**给音，而不是按 keymap 查找。
+  // HTML 里每个键元素都带 data-row/data-col，直接用事件坐标定位。
+  if (down){
+    const pos = physicalPositionForEvent(e);
+    if (pos) Sound.play(pos.row, pos.col, PHYSICAL_ROWS);
+    else if (els.length) Sound.play(2, 0, PHYSICAL_ROWS);  // 保底
+  }
+}
+
+// 本机键盘事件 → 键盘图上的行列位置。
+// 用 event.code 排序位置（不依赖 keymap），标点符号按码位递增。
+const PHYSICAL_ROWS = 6;
+
+// 常见按键在标准 ANSI 布局上的位置（row, col），仅用于音效音高。
+// 未列出的键会用一个中位音。
+const PHYS_POS = {
+  // 行 0：功能键区
+  Escape:[0,0], F1:[0,1], F2:[0,2], F3:[0,3], F4:[0,4],
+  F5:[0,5], F6:[0,6], F7:[0,7], F8:[0,8],
+  F9:[0,9], F10:[0,10], F11:[0,11], F12:[0,12],
+  Insert:[0,13], PrintScreen:[0,14], ScrollLock:[0,15], Pause:[0,16],
+  // 行 1：数字排
+  Backquote:[1,0], Digit1:[1,1], Digit2:[1,2], Digit3:[1,3], Digit4:[1,4],
+  Digit5:[1,5], Digit6:[1,6], Digit7:[1,7], Digit8:[1,8], Digit9:[1,9],
+  Digit0:[1,10], Minus:[1,11], Equal:[1,12], Backspace:[1,13],
+  Delete:[1,14], NumLock:[1,15], NumpadDivide:[1,16], NumpadMultiply:[1,17],
+  NumpadSubtract:[1,18],
+  // 行 2
+  Tab:[2,0], KeyQ:[2,1], KeyW:[2,2], KeyE:[2,3], KeyR:[2,4], KeyT:[2,5],
+  KeyY:[2,6], KeyU:[2,7], KeyI:[2,8], KeyO:[2,9], KeyP:[2,10],
+  BracketLeft:[2,11], BracketRight:[2,12], Backslash:[2,13],
+  PageUp:[2,14], Numpad7:[2,15], Numpad8:[2,16], Numpad9:[2,17], NumpadAdd:[2,18],
+  // 行 3
+  CapsLock:[3,0], KeyA:[3,1], KeyS:[3,2], KeyD:[3,3], KeyF:[3,4], KeyG:[3,5],
+  KeyH:[3,6], KeyJ:[3,7], KeyK:[3,8], KeyL:[3,9], Semicolon:[3,10],
+  Quote:[3,11], Enter:[3,12], PageDown:[3,13],
+  Numpad4:[3,14], Numpad5:[3,15], Numpad6:[3,16],
+  // 行 4
+  ShiftLeft:[4,0], KeyZ:[4,1], KeyX:[4,2], KeyC:[4,3], KeyV:[4,4], KeyB:[4,5],
+  KeyN:[4,6], KeyM:[4,7], Comma:[4,8], Period:[4,9], Slash:[4,10],
+  ShiftRight:[4,11], ArrowUp:[4,12], Numpad1:[4,13], Numpad2:[4,14],
+  Numpad3:[4,15], NumpadEnter:[4,16],
+  // 行 5
+  ControlLeft:[5,0], MetaLeft:[5,1], AltLeft:[5,2], Space:[5,3],
+  ControlRight:[5,4], MetaRight:[5,5], AltRight:[5,6],
+  ArrowLeft:[5,7], ArrowDown:[5,8], ArrowRight:[5,9],
+  Numpad0:[5,10], NumpadDecimal:[5,11],
+};
+
+function physicalPositionForEvent(e){
+  const p = PHYS_POS[e.code];
+  if (p) return { row: p[0], col: p[1] };
+  return null;
+}
+
+// 哪些浏览器快捷键应该被页面接管
+//
+// ⚠️ 很重要的事实（实测确认）：
+//   页面**拦不住**部分浏览器层快捷键。用 CDP 发真实按键时，
+//   F1 / F5 / F12 / Ctrl+F 等连 keydown 事件都收不到 —— 浏览器在
+//   把事件交给页面之前就自己处理了。这是浏览器安全边界，无法绕过。
+//
+//   所以这个函数只能处理“事件穿过来了”的那些键。
+//   想要真拦截 F5/F12，只能把页面装进独立应用（已用 C 启动器做了，
+//   但即使是自己的 exe，起的是浏览器进程，仍受同样限制）。
+//
+//   → 我们能做的：拦不掉的，在界面上明说，别让用户白试。
+function shouldBlockBrowserKey(e){
+  const k = e.key;
+
+  // F1–F12 全部尝试接管。
+  //
+  // 包括 F11（全屏）和 F5（刷新）—— 既然这个页面是“键盘测试器”，
+  // 用户按功能键就是想看高亮/听音效，不希望页面被刷新。
+  // 全屏需求改用页面里的“自适应”按钮满足。
+  if (/^F([1-9]|1[0-2])$/.test(k)) return true;
+
+  // 组合键类：会改页面或丢数据
+  if (e.ctrlKey || e.metaKey){
+    if (k.length === 1 && "sSpPuUoOfFgGhHjJ".includes(k)) return true;
+    if (e.shiftKey && k.length === 1 && "iIjJcC".includes(k)) return true;
+    if (k === "r" || k === "R") return true;
+  }
+
+  return false;
+}
+
+// 明知拦不住的键 —— 在侧栏列出来，避免用户以为是 bug
+const UNBLOCKABLE = [
+  "F5 / Ctrl+R 刷新",
+  "F12 / Ctrl+Shift+I 开发者工具",
+  "Ctrl+F 查找",
+  "Ctrl+W 关标签页",
+];
+
+function clearActiveKeys(){
+  document.querySelectorAll(".key.active")
+    .forEach(el => el.classList.remove("active"));
+}
+
+// ────────────────────────────────────────────── 按键音效
+//
+// 为什么用合成而不是音频文件
+// -------------------------
+// VIA 的做法是用 WebAudio 实时合成，好处：
+//   - 不需要任何 .wav/.mp3 文件，页面仍是单文件
+//   - 不增加打包体积（文件方案要几十 KB 到几 MB）
+//   - 音高可以按按键位置算，天然随键盘布局变化
+//
+// 原理：正弦振荡器 + ADSR 包络 + 压缩器防破音。
+// ADSR = Attack/Decay/Sustain/Release，模仿钢琴锤击后衰减的听感。
+
+const Sound = (()=>{
+  let ctx = null;
+  let master = null;
+  // 默认开启：只有用户**显式关掉**过才是关（存 "0"）。
+  // 初次访问 localStorage 为空，此时视为开。
+  let enabled = localStorage.getItem("max102_sound") !== "0";
+  let volume = parseFloat(localStorage.getItem("max102_sound_vol") || "0.3");
+
+  // 三种音阶模式
+  const MODE = { NONE:0, CHROMATIC:1, PENTATONIC:2, RANDOM:3 };
+  let mode = parseInt(localStorage.getItem("max102_sound_mode") || "2", 10);
+
+  function ensure(){
+    if (ctx) return true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    ctx = new AC();
+
+    // 压缩器：多个音同时响时防止削波（破音）
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -12;
+    comp.knee.value = 6;
+    comp.ratio.value = 8;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.08;
+
+    master = ctx.createGain();
+    master.gain.value = volume;
+    master.connect(comp);
+    comp.connect(ctx.destination);
+    return true;
+  }
+
+  // 浏览器要求首次发声必须在用户手势之后（自动播放策略）
+  function unlock(){
+    if (!ensure()) return;
+    if (ctx.state === "suspended") ctx.resume();
+  }
+
+  // 把 (row, col) 映射成音高。
+  //
+  // 设计要点（调过一版，第一版音域太宽）：
+  //   初版按"每行一个八度 + 列内五声递进"算，顶行直接窜到 MIDI 141
+  //   （频率 8.4 kHz），刺耳且超舒适区。实测只有 29% 的键落在
+  //   MIDI 48–84 的舒适区。
+  //
+  // 现在改成：
+  //   - 行只贡献**半个八度**（6 个半音），而不是整整一个
+  //   - 列在行内铺五声音阶，但整体只跨 2 个八度
+  //   - 总音域锁在 MIDI 60–95（C4–B6），全在舒适区内
+  //
+  // 听感：底行低而浑、顶行高而清，不会突然尖叫。
+  const PENTATONIC = [0, 2, 4, 7, 9];   // 大调五声，随便敲都不难听
+  const MAX_SEMI = 35;                  // 60 + 35 = 95
+
+  function midiFor(row, col, rows){
+    // 行号翻转：底行低音、顶行高音，符合直觉
+    const r = Math.max(0, Math.min(rows - 1, (rows - 1) - row));
+    const rowSpan = rows > 1 ? MAX_SEMI / (rows - 1) : 0;  // 每行 7 个半音
+    let semi;
+
+    if (mode === MODE.CHROMATIC){
+      semi = Math.round(r * rowSpan) + (col % 12);
+    } else if (mode === MODE.RANDOM){
+      semi = Math.floor(Math.random() * 24);
+    } else {
+      // 五声：行给基底，列在同八度内取五声，超过一轮就升一个八度
+      const rowBase = Math.round(r * rowSpan);
+      const idx = col % PENTATONIC.length;
+      const cycle = Math.floor(col / PENTATONIC.length);   // 第几轮
+      semi = rowBase + PENTATONIC[idx] + cycle * 12;
+    }
+
+    if (semi < 0) semi = 0;
+    if (semi > MAX_SEMI) semi = MAX_SEMI;
+    return 60 + semi;      // C4 起
+  }
+
+  function freq(midi){
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  function play(row, col, rows){
+    if (!enabled) return;
+    if (!ensure()) return;
+    if (ctx.state === "suspended") ctx.resume();
+
+    const t = ctx.currentTime;
+    const midi = midiFor(row, col, rows);
+    const f = freq(midi);
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    // 三角波比纯正弦更接近机械键盘的“嗒”，又不至于像方波那样刺耳
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(f, t);
+
+    // 轻微下滑，模拟敲击后的张力释放
+    osc.frequency.exponentialRampToValueAtTime(f * 0.985, t + 0.09);
+
+    // ADSR
+    const peak = 0.22;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + 0.006);   // Attack
+    gain.gain.exponentialRampToValueAtTime(peak * 0.35, t + 0.055); // Decay
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);  // Release
+
+    osc.connect(gain);
+    gain.connect(master);
+
+    osc.start(t);
+    osc.stop(t + 0.18);
+
+    osc.onended = ()=>{
+      try { osc.disconnect(); gain.disconnect(); } catch(_){}
+    };
+  }
+
+  return {
+    setEnabled(v){
+      enabled = !!v;
+      localStorage.setItem("max102_sound", enabled ? "1" : "0");
+      if (enabled) unlock();
+    },
+    isEnabled(){ return enabled; },
+    setVolume(v){
+      volume = Math.max(0, Math.min(1, v));
+      localStorage.setItem("max102_sound_vol", String(volume));
+      if (master) master.gain.value = volume;
+    },
+    getVolume(){ return volume; },
+    setMode(m){ mode = m; localStorage.setItem("max102_sound_mode", String(m)); },
+    getMode(){ return mode; },
+    modes: MODE,
+    play,
+    unlock,
+  };
+})();
+
+function initSoundControls(){
+  const on    = document.getElementById("soundOn");
+  const vol   = document.getElementById("soundVol");
+  const volV  = document.getElementById("soundVolV");
+  const mode  = document.getElementById("soundMode");
+
+  on.checked = Sound.isEnabled();
+  vol.value = Math.round(Sound.getVolume() * 100);
+  volV.textContent = vol.value;
+  mode.value = String(Sound.getMode());
+
+  on.onchange = ()=>{
+    Sound.setEnabled(on.checked);
+    if (on.checked){
+      // 开关本身也发一个音，当作确认
+      Sound.play(2, 0, 6);
+      log("音效已开启", "ok");
+    }
+  };
+
+  vol.oninput = ()=>{
+    volV.textContent = vol.value;
+    Sound.setVolume(Number(vol.value) / 100);
+  };
+  // 松手时发一个音，方便试音量
+  vol.onchange = ()=> Sound.play(2, 0, 6);
+
+  mode.onchange = ()=>{
+    Sound.setMode(Number(mode.value));
+    Sound.play(2, 0, 6);
+  };
+}
+
 function initRgbControls(){
   const sel = document.getElementById("rgbEffect");
   sel.innerHTML = "";
@@ -761,15 +1666,17 @@ async function readRgb(){
       document.getElementById("rgbSpeed").value = sp[0];
       document.getElementById("rgbSpeedV").textContent = sp[0];
     }
-    const co = await device.getBacklight(RGB_ID.COLOR[1], 3);
-    if (co && co.length === 3){
-      // HSV: h(0-255) s v
-      const hex = hsvToHex(co[0], co[1], co[2]);
+    // 颜色：固件只存 H、S，不存 V（亮度由专用滑条控）。
+    // 所以回读时用 V=255 复原一个可视颜色。
+    const co = await device.getBacklight(RGB_ID.COLOR[1], 2);
+    if (co && co.length >= 2){
+      const hex = hsvToHex(co[0], co[1], 255);
       document.getElementById("rgbColor").value = hex;
       document.getElementById("rgbColorV").textContent =
-        `H${co[0]} S${co[1]} V${co[2]}`;
+        `${hex.toUpperCase()}  H${co[0]} S${co[1]}`;
     }
     log("灯效参数已读取", "ok");
+    syncColorAvailability();
   } catch(e){
     log("读灯效失败: " + e.message, "er");
   } finally {
@@ -804,6 +1711,75 @@ function hexToHsv(hex){
   return [Math.round(h/360*255), Math.round(s*255), Math.round(mx*255)];
 }
 
+// 只要 H/S（固件不存 V，亮度由「亮度」滑条控）
+function hexToHs(hex){
+  const [h,s] = hexToHsv(hex);
+  return [h,s];
+}
+
+// ────────────────────────────────────────────── 灯效与颜色的关系
+//
+// QMK rgb_matrix 的硬规则：**很多灯效根本不读颜色参数**。
+// 它们要么自己跑色相环（rainbow/cycle/hue 类），要么不发光。
+// 所以「改了颜色没反应」不是 bug，是这个灯效不吃这个参数。
+//
+// 分三类：
+//   USE_COLOR   —— 用当前 HSV 颜色
+//   SELF_COLOR  —— 自己生成颜色，忽略用户设定；改了也白改
+//   NO_COLOR    —— 不发光 / 只关灯
+const EFFECT_COLOR_MODE = {
+  0:  "no",      // 全关
+  45: "no",      // Close All
+  2:  "use",     // Alphas Mods
+  5:  "use",     // Breathing 呼吸（固定色呼吸）
+  6:  "use",     // Band Sat
+  9:  "use",     // Band Pinwheel Val
+  13: "self",    // Cycle Left Right（自己循环色相）
+  15: "self",    // Rainbow Moving Chevron（彩虹）
+  16: "self",    // Cycle Out In
+  24: "self",    // Jellybean Raindrops（随机色）
+  25: "self",    // Hue Breathing（色相呼吸）
+  26: "self",    // Hue Pendulum（色相摆动）
+  29: "self",    // Pixel Flow
+  30: "self",    // Pixel Fractal
+  33: "use",     // Solid Reactive Simple
+  34: "use",     // Solid Reactive
+  35: "use",     // Solid Reactive Wide
+  43: "use",     // Solid Splash
+};
+
+function effectColorMode(code){
+  return EFFECT_COLOR_MODE[code] || "use";
+}
+
+// 找一个“吃颜色”的等价值灯效，用于颜色控件自动切换
+function colorCapableEquivalent(code){
+  // 彩虹/循环类 → 换成单色反应（保留“按键亮”的感觉）
+  return 34;   // Solid Reactive
+}
+
+// 根据当前灯效更新颜色控件的可用状态与提示
+function syncColorAvailability(){
+  const color = document.getElementById("rgbColor");
+  const hint  = document.getElementById("rgbColorHint");
+  const eff   = Number(document.getElementById("rgbEffect").value);
+  const mode  = effectColorMode(eff);
+
+  if (mode === "use"){
+    color.disabled = false;
+    hint.textContent = "此灯效支持自定义颜色";
+    hint.style.color = "var(--accent2)";
+  } else if (mode === "self"){
+    color.disabled = false;   // 不禁用，点的时候会提示自动切换
+    hint.textContent = "此灯效自己跑颜色，改颜色会切到「单点反应」";
+    hint.style.color = "var(--warn)";
+  } else {
+    color.disabled = true;
+    hint.textContent = "此灯效不发光，先选一个会亮的";
+    hint.style.color = "var(--dim)";
+  }
+}
+
 async function writeRgb(id, bytes, label){
   if (!device || rgbBusy) return;
   await device.setBacklight(id, bytes);
@@ -831,15 +1807,65 @@ function bindRgbControls(){
   };
 
   effect.onchange = ()=>{
-    writeRgb(RGB_ID.EFFECT[1], [Number(effect.value)],
+    const code = Number(effect.value);
+    writeRgb(RGB_ID.EFFECT[1], [code],
              `效果=${effect.options[effect.selectedIndex].text}`);
+    // 灯效变了，颜色的可用性也跟着变
+    setTimeout(syncColorAvailability, 60);
   };
 
-  color.onchange = ()=>{
-    const [h,s,v] = hexToHsv(color.value);
-    document.getElementById("rgbColorV").textContent = `H${h} S${s} V${v}`;
-    writeRgb(RGB_ID.COLOR[1], [h,s,v], `颜色 ${color.value}`);
+  // 颜色：**选中即生效**，不需要再点确定。
+  //
+  // 浏览器原生 <input type=color> 只有在关闭取色器对话框时才发 change，
+  // 体验上等于“选完还得再确认一下”。这里改成：
+  //   input  事件 → 边拖边写（节流 80ms，避免刷爆 HID）
+  //   change 事件 → 立即补一发，保证最终值一定落地
+  //
+  // ⚠️ 关键修复：如果当前灯效**不吃颜色**（彩虹/循环/关闭类），
+  //   光写颜色是没任何效果的 —— 用户会以为坏了。
+  //   所以先自动切到一个吃颜色的等价值灯效，再写颜色。
+  let colorTimer = null;
+  let lastSent = "";
+
+  const pushColor = (immediate)=>{
+    const doSend = async ()=>{
+      if (color.value === lastSent) return;
+      lastSent = color.value;
+
+      const [h,s] = hexToHs(color.value);   // 固件只存 H、S；V 恒为最亮
+      document.getElementById("rgbColorV").textContent =
+        `${color.value.toUpperCase()}  H${h} S${s}`;
+
+      const eff = Number(effect.value);
+      const mode = effectColorMode(eff);
+
+      if (mode !== "use"){
+        // 当前灯效不吃颜色：先切到一个吃颜色的，否则写颜色白写
+        const target = colorCapableEquivalent(eff);
+        effect.value = String(target);
+        await writeRgb(RGB_ID.EFFECT[1], [target],
+                       `自动切换到「${effect.options[effect.selectedIndex].text}」`);
+        log(mode === "no"
+            ? "原灯效不发光，已自动切到单点反应"
+            : "原灯效颜色自生成，已自动切到单点反应", "ok");
+        setTimeout(syncColorAvailability, 60);
+      }
+
+      writeRgb(RGB_ID.COLOR[1], [h, s, 255], `颜色 ${color.value}`);
+    };
+
+    if (immediate){
+      clearTimeout(colorTimer);
+      doSend();
+    } else {
+      clearTimeout(colorTimer);
+      colorTimer = setTimeout(doSend, 80);
+    }
   };
+  color.oninput  = ()=> pushColor(false);
+  color.onchange = ()=> pushColor(true);
+
+  syncColorAvailability();
 }
 
 // ────────────────────────────────────────────── 连接流程
@@ -856,7 +1882,12 @@ async function connect(){
     if (!hidDev.opened) await hidDev.open();
 
     device = new ViaDevice(hidDev);
-    log(`已打开: ${hidDev.productName || "MAX102"}`, "ok");
+    device.initLengths();          // 按报告描述符取真实长度（位 ÷ 8）
+    if (device.outLen !== 32){
+      log(`注意：报告长度为 ${device.outLen}B（预期 32B），可能选错了接口`, "er");
+    }
+    log(`已打开: ${hidDev.productName || "MAX102"}  `
+        + `(in=${device.inLen}B out=${device.outLen}B)`, "ok");
 
     const proto = await device.protocolVersion();
     log(`VIA 协议版本: ${proto}`);
@@ -945,15 +1976,70 @@ function disconnect(){
 }
 
 // ────────────────────────────────────────────── 初始化
+
+// device.json 有三种拿法（按优先级）：
+//   1. 全局变量 DEVICE_JSON  —— 打包成单文件时内联进来，连 fetch 都不用
+//   2. fetch("device.json")   —— 起本地服务时
+//   3. 内置兜底                —— 极端情况也能跑
+async function loadDeviceJson(){
+  if (typeof DEVICE_JSON !== "undefined" && DEVICE_JSON) return DEVICE_JSON;
+  try {
+    const r = await fetch("device.json", {cache: "no-store"});
+    if (r.ok) return await r.json();
+  } catch (_) { /* file:// 下 fetch 会失败，正常 */ }
+  throw new Error("读不到 device.json；请用 tools/launch.py 启动，或使用打包版");
+}
+
+// 出厂键位快照。没接键盘时用它渲染，而不是一片 KC_NO。
+async function loadDefaultKeymap(){
+  if (typeof DEFAULT_KEYMAP !== "undefined" && DEFAULT_KEYMAP) return DEFAULT_KEYMAP;
+  try {
+    const r = await fetch("keymap_default.json", {cache: "no-store"});
+    if (r.ok) return await r.json();
+  } catch (_) {}
+  return null;
+}
+
+// 把快照填进 keymap[][][]，返回是否成功
+function applyDefaultKeymap(snap){
+  if (!snap || !Array.isArray(snap.layers) || !snap.layers.length) return false;
+  const m = snap.matrix || {rows:6, cols:19};
+  for (let L=0; L<snap.layers.length && L<MAX_LAYERS_JS; L++){
+    const g = snap.layers[L];
+    for (let r=0; r<m.rows; r++){
+      const row = g[r] || [];
+      for (let c=0; c<m.cols; c++){
+        keymap[L][r][c] = row[c] ?? 0;
+      }
+    }
+  }
+  return true;
+}
+
 async function init(){
-  const deviceJson = await fetch("device.json").then(r=>r.json());
+  const deviceJson = await loadDeviceJson();
   const layout = deviceJson.layouts.keymap;
   geo = buildGeometry(layout);
 
+  // 初始化 keymap 数组，然后用出厂快照填一遍
+  for (let L=0;L<MAX_LAYERS_JS;L++){
+    keymap[L] = Array.from({length:6},()=>new Array(19).fill(0));
+  }
+  const snap = await loadDefaultKeymap();
+  const hasDefault = applyDefaultKeymap(snap);
+  if (hasDefault){
+    previewMode = true;
+    layers = Math.min(snap.layerCount || 5, MAX_LAYERS_JS);
+  }
+
   // 用官方键位表填默认标签（读不到时显示）
   renderLayerTabs();
-  for (let L=0;L<5;L++) keymap[L] = Array.from({length:6},()=>new Array(19).fill(0));
   renderKeyboard();
+  syncWriteAvailability();
+
+  if (hasDefault){
+    log(`已载入出厂键位快照（${layers} 层），可直接预览；点「连接键盘」可读取实际状态`, "ok");
+  }
 
   document.getElementById("btnConnect").onclick = ()=>{
     if (device) disconnect(); else connect();
@@ -971,9 +2057,25 @@ async function init(){
   };
   document.getElementById("btnBoot").onclick = async ()=>{
     if (!device) return;
-    if (!confirm("键盘将进入 DFU 刷机模式，之后无法输入。继续吗？")) return;
+    // ⚠️ 已知限制（反汇编确认）：本固件的 VIA cmd 11 (BOOTLOADER_JUMP)
+    // 只执行 `movs r3,#0xff; strb r3,[r4]; b 公共出口`，
+    // **根本不调用 0x0800BCB4 那个真正的 wb32_dfu 跳转函数**。
+    // 所以发 cmd 11 不会进 DFU —— 原厂就没接这条线。
+    const msg =
+      "这个按钮在 MAX102 原厂固件上无效。\\n\\n" +
+      "原因（反汇编已确认）：\\n" +
+      "VIA cmd 11 的 handler 在 0x0800B710，只有 3 条指令：\\n" +
+      "    movs r3, #0xff\\n" +
+      "    strb r3, [r4]\\n" +
+      "    b    0x0800B69C      ← 直接返回，不跳 DFU\\n\\n" +
+      "真正的 wb32_dfu_jump 在 0x0800BCB4，但全固件只有一个调用点\\n" +
+      "（0x0800C3DE），不是从 VIA 进来的。\\n\\n" +
+      "手动进 DFU 的方法：\\n" +
+      "  按住 FN → 按住右 Shift → 点一下 ESC\\n\\n" +
+      "要继续发送 cmd 11 试试吗？（不会损坏任何东西）";
+    if (!confirm(msg)) return;
     await device.bootloader();
-    log("已发送进入 DFU 命令", "ok");
+    log("已发送 cmd 11（预期无效，原因见上方说明）", "er");
   };
   document.getElementById("btnCancel").onclick = closePicker;
   document.getElementById("modal").onclick = (e)=>{
@@ -983,10 +2085,61 @@ async function init(){
     renderKeycodeList(e.target.value);
   };
   document.addEventListener("keydown", (e)=>{
+    // ── 拦截会干扰页面的浏览器快捷键 ─────────────────
+    //
+    // 这个页面在"测试键盘"，按下 F1/F3/F5/F12/Ctrl+S 等不应该
+    // 触发浏览器自己的行为（开帮助、搜索、刷新、开发者工具、保存页面……）。
+    // 否则用户试键时页面会被搞乱。
+    //
+    // 注意：不能拦 Tab（会锁死键盘导航）、不能拦 F11（全屏是刚需）、
+    // 也不能拦 Ctrl+W（关标签页 —— 拦不住，浏览器不给）。
+    const inField = ["input","textarea","select"]
+      .includes((e.target && e.target.tagName || "").toLowerCase());
+
+    if (!inField && shouldBlockBrowserKey(e)){
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Escape 既关弹窗，也应该正常参与高亮/音效 ——
+    // 不能直接 return 把它排除在外（那样按 ESC 就没声音、不亮）
     if (e.key === "Escape") closePicker();
+
+    onPhysicalKey(e, true);
+  }, {capture:true});
+  document.addEventListener("keyup", (e)=>{
+    if (shouldBlockBrowserKey(e)) e.preventDefault();
+    onPhysicalKey(e, false);
+  }, {capture:true});
+  // 切窗回来时清掉残留高亮（松开事件可能丢）
+  window.addEventListener("blur", clearActiveKeys);
+
+  // 窗口改变大小时重新自适应缩放（带防抖）
+  let rzTimer = null;
+  window.addEventListener("resize", ()=>{
+    clearTimeout(rzTimer);
+    rzTimer = setTimeout(()=>{ renderKeyboard(); }, 120);
   });
 
+  // ── 缩放控件 ──
+  document.getElementById("zoomIn").onclick  = ()=> zoomBy(1.12);
+  document.getElementById("zoomOut").onclick = ()=> zoomBy(1/1.12);
+  document.getElementById("zoomFit").onclick = ()=> resetUnit();
+
+  // Ctrl + 滚轮 缩放（避免和页面滚动打架）
+  document.getElementById("kb").parentElement.addEventListener("wheel", (e)=>{
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 1.08 : 1/1.08);
+  }, {passive:false});
+
   initRgbControls();
+  initSoundControls();
+
+  // 浏览器自动播放策略：首次任意交互后解锁音频上下文
+  const unlockOnce = ()=>{ Sound.unlock(); };
+  window.addEventListener("pointerdown", unlockOnce, {once:true});
+  window.addEventListener("keydown", unlockOnce, {once:true});
   bindRgbControls();
   rgbSetEnabled(false);
 
@@ -996,7 +2149,20 @@ async function init(){
   }
 }
 
-init();
+init().catch(e => {
+  console.error(e);
+  const el = document.getElementById("log");
+  const msg = `初始化失败: ${e && e.message ? e.message : e}`;
+  if (el){
+    const d = document.createElement("div");
+    d.className = "er";
+    d.textContent = msg;
+    el.appendChild(d);
+  } else {
+    document.body.insertAdjacentHTML("afterbegin",
+      `<pre style="color:#f28b82">${msg}</pre>`);
+  }
+});
 </script>
 </body>
 </html>

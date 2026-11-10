@@ -6,35 +6,67 @@
 
 ## 一、准备
 
-### 1. 刷补丁固件（必须先做）
+### 1. 刷补丁固件（看电量才需要）
 
-电量功能需要补丁固件。改键功能在原厂固件上也能用。
+电量功能需要补丁固件。**改键 / 调灯效在原厂固件上也能用。**
+
+补丁固件不入库，现场构建：
 
 ```bash
 # 在仓库根目录执行（下文都用相对路径）
 cd weikav-max102
 
+py -3.13 patch-sdk/tools/build.py patch-sdk/patches/battery
+py -3.13 patch-sdk/tools/equiv.py --verify patch-sdk/out/max102_battery.bin
+
 # 进 DFU：按住 FN → 按住右 Shift → 点一下 ESC
 wb32-dfu-updater_cli.exe -l
-wb32-dfu-updater_cli.exe -D firmware\max102_patched_battery.bin -s 0x08000000
+wb32-dfu-updater_cli.exe -D patch-sdk\out\max102_battery.bin
 wb32-dfu-updater_cli.exe -R
 ```
 
-### 2. 用 Chrome 或 Edge 打开
+> ⚠️ **不要加 `-s 0x08000000`**：此版工具带这个参数会静默失败（exit 64、无输出）。
+> 省略 `-s` 时默认就是 `0x08000000`。
+
+### 2. 启动（推荐用启动器）
 
 **必须是 Chromium 内核**（WebHID 支持）。Firefox / Safari 不行。
 
+#### 方式 A：双击启动器（最简单）
+
 ```
-web\index.html            ← 双击，或把文件拖进浏览器窗口
+启动配置工具.cmd        ← 仓库根目录，双击
 ```
 
-> ⚠️ 必须通过 **http(s) 或 file://** 打开。直接双击可以，
-> 但如果浏览器拦截 `file://` 的 fetch，就起个本地服务：
-> ```bash
-> cd web
-> py -3.13 -m http.server 8765
-> # 然后访问 http://localhost:8765/
-> ```
+它会自动：找 Python 3.13 → 起本地 HTTP 服务 → 打开浏览器。
+关掉黑窗口即停止。
+
+#### 方式 B：命令行
+
+```bash
+py -3.13 -X utf8 tools/launch.py                 # 起服务 + 开浏览器
+py -3.13 -X utf8 tools/launch.py --with-status   # 顺便打印设备状态
+py -3.13 -X utf8 tools/launch.py --no-browser    # 只起服务
+py -3.13 -X utf8 tools/launch.py -p 9000         # 换端口
+```
+
+#### 为什么不能直接双击 index.html
+
+WebHID 要求「安全上下文」：
+
+| 打开方式 | WebHID 可用？ |
+|---|---|
+| `file:///.../index.html`（双击） | ❌ **Chrome/Edge 直接禁用** |
+| `http://127.0.0.1:8777/` | ✅ |
+| `http://localhost:8777/` | ✅ |
+| `http://192.168.x.x:8777/` | ❌ 非回环地址不算安全上下文 |
+
+所以必须起本地服务，直连 `file://` 无论怎么改都不行。
+
+#### 2.4G 无线也能用
+
+插着接收器、不插 USB 线，改键 / 看电量 / 调灯效全都能做。
+启动器会连到 `MAX102-2.4G`，功能和有线完全一致。
 
 ### 3. 键盘设置
 
@@ -67,7 +99,7 @@ web\index.html            ← 双击，或把文件拖进浏览器窗口
 | **指示灯** | Caps / Num / Scroll |
 
 > 电量来源：主控每 3 秒问 FR8003A 一次（`0xA6 0x53`），
-> 模块回 `0x5C <0-100>`。网页通过新增的 `cmd 0x06` 读取。
+> 模块回 `0x5C <0-100>`。网页通过**新增的 `cmd 20`（0x14）**读取。
 > 与键盘上按 `FN + BATQ` 点亮的 LED 段数一致。
 
 ### 改键
@@ -123,7 +155,7 @@ web\index.html            ← 双击，或把文件拖进浏览器窗口
 | 改键 / 读键 | ❌ 原厂固件即可 |
 | **看电量** | ✅ **必须刷补丁** |
 
-补丁接管了 VIA 的 `cmd 0x06`（原为厂家私有、官方驱动未使用的 LED 批量设色命令）。
+补丁**新增**了 VIA 的 `cmd 20`（0x14）。原厂该号越界、回 `0xFF`，改成有效命令不影响任何现有功能；原厂 19 条命令（含 cmd 6「恢复默认 keymap」）行为完全不变。
 所以如果你之前用官方网页驱动做过"批量设色"之类的操作，刷补丁后会失效——但那功能官方界面本来就没有入口。
 
 ### 回退到原厂
@@ -149,9 +181,9 @@ wb32-dfu-updater_cli.exe -R
 
 ### 电量一直显示 `--`
 
-- 说明键盘没响应 `cmd 0x06`
+- 说明键盘没响应 `cmd 20`（0x14）
 - 可能原因：① 没刷补丁固件 ② 选了错误的 HID 接口
-- 改键正常但电量不动 = 100% 是没刷补丁
+- 改键正常但电量不动 = 没刷补丁；先确认响应首字节是 `0x14` 而不是 `0xFF`
 
 ### 改键后键盘没变化
 
@@ -182,7 +214,7 @@ REPORT_SIZE = 33
 | 1 | GET_PROTOCOL_VERSION | 握手，应为 12 |
 | 4 | GET_KEYCODE | 读单个键（用于写入后读回验证） |
 | 5 | SET_KEYCODE | 写单个键 |
-| **6** | **GET_BATTERY** | **补丁新增** |
+| **20** | **GET_BATTERY** | **补丁新增**（原厂该号越界回 0xFF） |
 | 10 | EEPROM_RESET | 恢复默认 |
 | 11 | BOOTLOADER_JUMP | 进 DFU |
 | 17 | GET_LAYER_COUNT | 读层数（=5） |
