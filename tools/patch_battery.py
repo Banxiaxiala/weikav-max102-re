@@ -45,7 +45,7 @@ SLOT_EXPECT = 0x0050                           # 原值（指向 0x080099EC）
 
 # 新 handler
 HANDLER = 0x0800FD82
-POOL = 0x0800FDA4
+POOL = 0x0800FDA8
 
 # 要读的 RAM
 RESP_PTR_LITERAL = 0x08009AAC                  # 该处存 0x20000F60
@@ -147,7 +147,22 @@ def preflight(buf):
 # ---------------------------------------------------------------- 生成代码
 
 def build_handler():
-    """返回 (代码字节, 池字节)"""
+    """返回 (代码字节, 池字节)
+
+    ⚠️ 关键：handler 结尾必须 `b 0x080099C8`（跳公共尾部），
+    不能 `bx lr`。
+
+    因为本 handler 由命令分发表直接跳入（tbh 目标），不在 `bl` 调用上下文里。
+    用 bx lr 会直接返回到 FUN_08009868 的调用者，跳过：
+      - add sp,#0x34      （栈未恢复 → 错位）
+      - pop {r4-r11,lr}   （寄存器未恢复）
+      - bl 0x08008B80     （响应从未发送）
+    后果是必崩。
+
+    正确做法与 cmd 1..0x2D 完全一致：
+      0x08009BDE: bl raw_hid_send
+      0x08009BE2..0x08009BEA: 弹栈返回
+    """
     try:
         from keystone import Ks, KS_ARCH_ARM, KS_MODE_THUMB
     except ImportError:
@@ -175,7 +190,7 @@ def build_handler():
         ubfx     r3, r2, #8, #8
         strb     r3, [r1, #7]
         movs     r0, #0
-        bx       lr
+        b        #0x080099C8
     """
     code, count = ks.asm(asm, HANDLER)
     code = bytes(code)

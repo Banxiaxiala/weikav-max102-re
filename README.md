@@ -2,7 +2,7 @@
 
 [![QMK](https://img.shields.io/badge/QMK-VIA%20v12-blue)](https://qmk.fm)
 [![MCU](https://img.shields.io/badge/MCU-WB32FQ95%20Cortex--M3-orange)]()
-[![License](https://img.shields.io/badge/License-MIT%20%2B%20GPL--2.0-green)](docs/NOTICE.md)
+[![License](https://img.shields.io/badge/License-MIT%20%2B%20GPL--2.0-green)](docs/10-版权声明.md)
 
 维咖 MAX102（Weikav MAX102）三模无线机械键盘的硬件与固件逆向工程记录。
 
@@ -34,16 +34,16 @@
 
 | 文档 | 内容 |
 |---|---|
-| **[DEBUG.md](docs/DEBUG.md)** | **调试入口全图** —— DFU / SWD / UART 三层，含救砖流程与常见故障速查 |
-| **[ANALYSIS.md](docs/ANALYSIS.md)** | 完整分析报告 —— 硬件识别、固件读取、VIA 协议、5 层键位表、QMK 移植评估 |
-| **[BATTERY.md](docs/BATTERY.md)** | 电量链路完整还原 + 三条上报路线（含代码方案） |
-| **[DISASSEMBLY.md](docs/DISASSEMBLY.md)** | Ghidra 反编译结果 —— 520 个函数、中断向量表、RAM 布局、字符串 |
-| **[HANDOVER.md](docs/HANDOVER.md)** | 项目现状、环境配置、已确认事实清单、风险点 |
-| **[NEEDED.md](docs/NEEDED.md)** | 还缺哪些硬件信息、怎么测、哪些其实不需要 |
-| **[HARDWARE.md](docs/HARDWARE.md)** | 矩阵 / UART / USB 引脚（全部从固件还原，不用万用表） |
-| **[PATCH_PLAN.md](docs/PATCH_PLAN.md)** | 电量二进制补丁的完整设计与验证 |
-| **[VIA_PROTOCOL.md](docs/VIA_PROTOCOL.md)** | VIA 命令号实测对照（官方驱动 vs 固件 vs 本地工具） |
-| **[NOTICE.md](docs/NOTICE.md)** | ⚠️ **版权与使用声明 —— 使用前必读** |
+| **[调试指南.md](docs/03-调试指南.md)** | **调试入口全图** —— DFU / SWD / UART 三层，含救砖流程与常见故障速查 |
+| **[分析报告.md](docs/02-分析报告.md)** | 完整分析报告 —— 硬件识别、固件读取、VIA 协议、5 层键位表、QMK 移植评估 |
+| **[电量链路.md](docs/06-电量链路.md)** | 电量链路完整还原 + 三条上报路线（含代码方案） |
+| **[反汇编.md](docs/04-反汇编.md)** | Ghidra 反编译结果 —— 520 个函数、中断向量表、RAM 布局、字符串 |
+| **[项目移交.md](docs/01-项目移交.md)** | 项目现状、环境配置、已确认事实清单、风险点 |
+| **[硬件引脚.md](docs/05-硬件引脚.md)** | 矩阵 / UART / USB 引脚（全部从固件还原，不用万用表） |
+| **[电量补丁方案.md](docs/07-电量补丁方案.md)** | 电量二进制补丁的完整设计与验证 |
+| **[VIA协议.md](docs/08-VIA协议.md)** | VIA 命令号实测对照（官方驱动 vs 固件 vs 本地工具） |
+| **[待采集清单.md](docs/09-待采集清单.md)** | 还缺哪些硬件信息、怎么测、哪些其实不需要 |
+| **[版权声明.md](docs/10-版权声明.md)** | ⚠️ **版权与使用声明 —— 使用前必读** |
 
 ---
 
@@ -54,17 +54,17 @@
 ├── README.md                  本文件（唯一留在根目录的文档）
 ├── LICENSE                    MIT（不覆盖固件与 via.json）
 │
-├── docs/                      全部分析文档
-│   ├── DEBUG.md               调试入口（DFU / SWD / UART）
-│   ├── ANALYSIS.md            完整分析报告
-│   ├── BATTERY.md             电量链路与上报方案
-│   ├── DISASSEMBLY.md         反编译结果
-│   ├── HANDOVER.md            项目移交文档
-│   ├── HARDWARE.md            矩阵 / UART / USB 引脚
-│   ├── NEEDED.md              待采集清单
-│   ├── PATCH_PLAN.md          电量二进制补丁设计
-│   ├── VIA_PROTOCOL.md        VIA 命令号实测对照
-│   └── NOTICE.md              版权与使用声明
+├── docs/                      全部分析文档（按阅读顺序编号）
+│   ├── 01-项目移交.md         项目现状、风险点（先读这个）
+│   ├── 02-分析报告.md         完整分析报告
+│   ├── 03-调试指南.md         调试入口（DFU / SWD / UART）
+│   ├── 04-反汇编.md           反编译结果
+│   ├── 05-硬件引脚.md         矩阵 / UART / USB 引脚
+│   ├── 06-电量链路.md         电量链路与上报方案
+│   ├── 07-电量补丁方案.md     电量二进制补丁设计
+│   ├── 08-VIA协议.md          VIA 命令号实测对照
+│   ├── 09-待采集清单.md       待采集清单
+│   └── 10-版权声明.md         版权与使用声明
 │
 ├── firmware/
 │   ├── max102_stock_256k.bin  原厂固件全片 256KB（救命用）
@@ -155,7 +155,7 @@ wb32-dfu-updater_cli.exe -R      # 复位回正常模式
 | 二次读取 | MD5 完全一致 ✅ |
 | 有效长度 | `0x10D33`（约 68KB），其后全 `0x00` |
 
-详细步骤与救砖流程见 **[DEBUG.md](docs/DEBUG.md)**。
+详细步骤与救砖流程见 **[调试指南.md](docs/03-调试指南.md)**。
 
 ---
 
@@ -265,7 +265,7 @@ QMK 维护者已暂停 Weikav 的所有 PR，直到交出全部源码。
 > **不需要逻辑分析仪。**
 
 1. 实现 `DEV BT1-5` / `DEV 2.4G` / `HS_BATQ`
-2. 电量上报（`0xA6 0x53` → `0x5C`，见 [BATTERY.md](docs/BATTERY.md)）
+2. 电量上报（`0xA6 0x53` → `0x5C`，见 [电量链路.md](docs/06-电量链路.md)）
 3. 低功耗调优
 4. 可直接复用 `keyboards/westberry/wireless/`
 
@@ -288,7 +288,7 @@ QMK 维护者已暂停 Weikav 的所有 PR，直到交出全部源码。
 本项目为**个人硬件研究**，所有固件读取均在**自己拥有的设备**上进行。
 
 - `firmware/` 中的固件**版权归 LEKU / Weikav 所有**，作为 QMK 衍生作品推定为 **GPL-2.0**；
-  **厂商从未公开对应源码**，故本仓库无法满足 GPL-2.0 第 3 条（见 **[NOTICE.md](docs/NOTICE.md)**）
+  **厂商从未公开对应源码**，故本仓库无法满足 GPL-2.0 第 3 条（见 **[版权声明.md](docs/10-版权声明.md)**）
 - `tools/max102_via.json` 是厂商配置数据，不在 MIT 范围
 - 刷机有风险，**后果自负**
 - 拆机将使**保修失效**
@@ -297,7 +297,7 @@ QMK 维护者已暂停 Weikav 的所有 PR，直到交出全部源码。
 
 权利人对收录内容有异议请开 Issue，确认身份后**立即移除**。
 
-完整条款见 **[NOTICE.md](docs/NOTICE.md)**。
+完整条款见 **[版权声明.md](docs/10-版权声明.md)**。
 
 希望 Weikav 官方能开源：`support@weikav.com`
 
@@ -311,8 +311,8 @@ QMK 维护者已暂停 Weikav 的所有 PR，直到交出全部源码。
 已被 `.gitignore` 排除，不入库也不属于发布内容。
 
 `firmware/*.bin` 推定为 **GPL-2.0**（QMK 衍生作品），但厂商从未公开源码，
-因此无法满足 GPL-2.0 §3 —— 详见 [NOTICE.md](docs/NOTICE.md) 第 2 节。
+因此无法满足 GPL-2.0 §3 —— 详见 [版权声明.md](docs/10-版权声明.md) 第 2 节。
 
 `tools/max102_via.json` 许可状态不明，不在 MIT 覆盖范围内。
 
-完整条款见 [NOTICE.md](docs/NOTICE.md)。
+完整条款见 [版权声明.md](docs/10-版权声明.md)。
