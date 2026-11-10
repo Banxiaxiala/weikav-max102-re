@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="250"
+     viewBox="0 0 780 250" font-family="ui-sans-serif, system-ui, -apple-system,
+     'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity=".65"/>
+    </marker>
+    <marker id="arw-g" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2ea043"/>
+    </marker>
+    <marker id="arw-r" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d1242f"/>
+    </marker>
+  </defs>
+  <style>
+    .bg    { fill: #ffffff; }
+    .t     { fill: #1f2328; }
+    .dim   { fill: #59636e; }
+    .box   { fill: #f6f8fa; stroke: #d1d9e0; stroke-width: 1.5; }
+    .boxg  { fill: #dafbe1; stroke: #2ea043; stroke-width: 1.5; }
+    .boxr  { fill: #ffebe9; stroke: #d1242f; stroke-width: 1.5; }
+    .boxb  { fill: #ddf4ff; stroke: #0969da; stroke-width: 1.5; }
+    .bx    { fill: #f6f8fa; stroke: #d1d9e0; stroke-width: 1.2; }
+    .ln    { stroke: currentColor; stroke-width: 1.6; fill: none;
+              opacity: .55; }
+    .lng   { stroke: #2ea043; stroke-width: 2; fill: none; }
+    .lnr   { stroke: #d1242f; stroke-width: 2; fill: none; }
+    .lnd   { stroke: currentColor; stroke-width: 1.4; fill: none;
+              opacity: .35; stroke-dasharray: 5 4; }
+    .mono  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+              font-size: 11.5px; fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .bg   { fill: #0d1117; }
+      .t    { fill: #e6edf3; }
+      .dim  { fill: #9198a1; }
+      .box  { fill: #161b22; stroke: #30363d; }
+      .boxg { fill: #12261e; stroke: #3fb950; }
+      .boxr { fill: #271416; stroke: #f85149; }
+      .boxb { fill: #0c1e33; stroke: #4493f8; }
+      .bx   { fill: #161b22; stroke: #30363d; }
+      .mono { fill: #9198a1; }
+    }
+  </style>
+  <rect class="bg" x="0" y="0" width="780" height="250" rx="10"/>
+<text class="t" x="24" y="36" font-size="15" font-weight="600" text-anchor="start">刷机流程</text>
+<text class="dim" x="24" y="58" font-size="11.5" font-weight="400" text-anchor="start">必须插 USB 线；2.4G 和蓝牙都刷不了</text>
+<rect class="box" x="30" y="92" width="172" height="72" rx="7"/>
+<text class="t" x="44" y="118" font-size="12.5" font-weight="600" text-anchor="start">1. 备份</text>
+<text class="mono" x="44" y="142" text-anchor="start">wb32-dfu-updater -U backup</text>
+<path class="ln" d="M 203 128 L 208 128" marker-end="url(#arw)"/>
+<rect class="box" x="210" y="92" width="172" height="72" rx="7"/>
+<text class="t" x="224" y="118" font-size="12.5" font-weight="600" text-anchor="start">2. 进 DFU</text>
+<text class="mono" x="224" y="142" text-anchor="start">FN → RShift → ESC</text>
+<path class="ln" d="M 383 128 L 388 128" marker-end="url(#arw)"/>
+<rect class="boxg" x="390" y="92" width="172" height="72" rx="7"/>
+<text class="t" x="404" y="118" font-size="12.5" font-weight="600" text-anchor="start">3. 刷入</text>
+<text class="mono" x="404" y="142" text-anchor="start">-D max102_patched_battery.</text>
+<path class="ln" d="M 563 128 L 568 128" marker-end="url(#arw)"/>
+<rect class="box" x="570" y="92" width="172" height="72" rx="7"/>
+<text class="t" x="584" y="118" font-size="12.5" font-weight="600" text-anchor="start">4. 重启</text>
+<text class="mono" x="584" y="142" text-anchor="start">拔插一次 USB</text>
+<rect class="boxr" x="30" y="186" width="720" height="42" rx="7"/>
+<text class="t" x="46" y="206" font-size="11.5" font-weight="600" text-anchor="start">回滚</text>
+<text class="mono" x="88" y="206" text-anchor="start">wb32-dfu-updater -t WB32 -D max102_stock_trimmed.bin</text>
+<text class="dim" x="46" y="222" font-size="10.5" font-weight="400" text-anchor="start">刷之前强烈建议先自己 -U 备份一遍，别完全信仓库里的文件</text></svg>

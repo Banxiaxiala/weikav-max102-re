@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="240"
+     viewBox="0 0 780 240" font-family="ui-sans-serif, system-ui, -apple-system,
+     'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity=".65"/>
+    </marker>
+    <marker id="arw-g" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2ea043"/>
+    </marker>
+    <marker id="arw-r" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d1242f"/>
+    </marker>
+  </defs>
+  <style>
+    .bg    { fill: #ffffff; }
+    .t     { fill: #1f2328; }
+    .dim   { fill: #59636e; }
+    .box   { fill: #f6f8fa; stroke: #d1d9e0; stroke-width: 1.5; }
+    .boxg  { fill: #dafbe1; stroke: #2ea043; stroke-width: 1.5; }
+    .boxr  { fill: #ffebe9; stroke: #d1242f; stroke-width: 1.5; }
+    .boxb  { fill: #ddf4ff; stroke: #0969da; stroke-width: 1.5; }
+    .bx    { fill: #f6f8fa; stroke: #d1d9e0; stroke-width: 1.2; }
+    .ln    { stroke: currentColor; stroke-width: 1.6; fill: none;
+              opacity: .55; }
+    .lng   { stroke: #2ea043; stroke-width: 2; fill: none; }
+    .lnr   { stroke: #d1242f; stroke-width: 2; fill: none; }
+    .lnd   { stroke: currentColor; stroke-width: 1.4; fill: none;
+              opacity: .35; stroke-dasharray: 5 4; }
+    .mono  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+              font-size: 11.5px; fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .bg   { fill: #0d1117; }
+      .t    { fill: #e6edf3; }
+      .dim  { fill: #9198a1; }
+      .box  { fill: #161b22; stroke: #30363d; }
+      .boxg { fill: #12261e; stroke: #3fb950; }
+      .boxr { fill: #271416; stroke: #f85149; }
+      .boxb { fill: #0c1e33; stroke: #4493f8; }
+      .bx   { fill: #161b22; stroke: #30363d; }
+      .mono { fill: #9198a1; }
+    }
+  </style>
+  <rect class="bg" x="0" y="0" width="780" height="240" rx="10"/>
+<text class="t" x="24" y="36" font-size="15" font-weight="600" text-anchor="start">指示灯位（响应第 7 字节）</text>
+<text class="dim" x="24" y="58" font-size="11.5" font-weight="400" text-anchor="start">实测 0x01 = Caps Lock 亮；Num / Scroll 未验证（键位表里没有对应灯）</text>
+<rect class="boxg" x="40" y="92" width="84" height="52" rx="5"/>
+<text class="dim" x="82.0" y="110" font-size="10" font-weight="400" text-anchor="middle">bit0</text>
+<text class="t" x="82.0" y="128" font-size="11" font-weight="600" text-anchor="middle">Caps Lock</text>
+<text class="dim" x="82.0" y="158" font-size="9.5" font-weight="400" text-anchor="middle">✅ 已验证</text>
+<rect class="box" x="130" y="92" width="84" height="52" rx="5"/>
+<text class="dim" x="172.0" y="110" font-size="10" font-weight="400" text-anchor="middle">bit1</text>
+<text class="t" x="172.0" y="128" font-size="11" font-weight="600" text-anchor="middle">Num Lock</text>
+<text class="dim" x="172.0" y="158" font-size="9.5" font-weight="400" text-anchor="middle">未验证</text>
+<rect class="box" x="220" y="92" width="84" height="52" rx="5"/>
+<text class="dim" x="262.0" y="110" font-size="10" font-weight="400" text-anchor="middle">bit2</text>
+<text class="t" x="262.0" y="128" font-size="11" font-weight="600" text-anchor="middle">Scroll Lock</text>
+<text class="dim" x="262.0" y="158" font-size="9.5" font-weight="400" text-anchor="middle">未验证</text>
+<rect class="box" x="310" y="92" width="84" height="52" rx="5"/>
+<text class="dim" x="352.0" y="110" font-size="10" font-weight="400" text-anchor="middle">bit3</text>
+<text class="t" x="352.0" y="128" font-size="11" font-weight="600" text-anchor="middle">—</text>
+<text class="dim" x="352.0" y="158" font-size="9.5" font-weight="400" text-anchor="middle"></text>
+<rect class="box" x="400" y="92" width="84" height="52" rx="5"/>
+<text class="dim" x="442.0" y="110" font-size="10" font-weight="400" text-anchor="middle">bit4</text>
+<text class="t" x="442.0" y="128" font-size="11" font-weight="600" text-anchor="middle">—</text>
+<text class="dim" x="442.0" y="158" font-size="9.5" font-weight="400" text-anchor="middle"></text>
+<rect class="box" x="490" y="92" width="84" height="52" rx="5"/>
+<text class="dim" x="532.0" y="110" font-size="10" font-weight="400" text-anchor="middle">bit5</text>
+<text class="t" x="532.0" y="128" font-size="11" font-weight="600" text-anchor="middle">—</text>
+<text class="dim" x="532.0" y="158" font-size="9.5" font-weight="400" text-anchor="middle"></text>
+<rect class="box" x="580" y="92" width="84" height="52" rx="5"/>
+<text class="dim" x="622.0" y="110" font-size="10" font-weight="400" text-anchor="middle">bit6</text>
+<text class="t" x="622.0" y="128" font-size="11" font-weight="600" text-anchor="middle">—</text>
+<text class="dim" x="622.0" y="158" font-size="9.5" font-weight="400" text-anchor="middle"></text>
+<rect class="box" x="670" y="92" width="84" height="52" rx="5"/>
+<text class="dim" x="712.0" y="110" font-size="10" font-weight="400" text-anchor="middle">bit7</text>
+<text class="t" x="712.0" y="128" font-size="11" font-weight="600" text-anchor="middle">—</text>
+<text class="dim" x="712.0" y="158" font-size="9.5" font-weight="400" text-anchor="middle"></text>
+<text class="dim" x="24" y="205" font-size="11" font-weight="400" text-anchor="start">位图形式：某一位置 1 表示该指示灯亮。修改键位不影响这个字段。</text></svg>

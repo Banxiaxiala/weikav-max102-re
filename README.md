@@ -10,6 +10,8 @@
 > 本项目通过反编译原厂固件，**在原厂固件基础上做过最小二进制修改**，让键盘能把电量
 > 告诉电脑。原厂 19 条 VIA 命令**一个字节都没动**。
 
+![电量通路](assets/01-电量通路.svg)
+
 ---
 
 ## 目录
@@ -53,6 +55,8 @@ dist/                   打包好的 Windows 程序
 ## 原厂固件 vs 补丁固件
 
 这是本仓库最重要的部分。**两者只差一个 VIA 命令。**
+
+![固件差异](assets/02-固件差异.svg)
 
 ### 一张表看清区别
 
@@ -122,6 +126,8 @@ dist/                   打包好的 Windows 程序
   （`wb32-dfu-updater_cli.exe`）
 - **USB 线**（刷机必须插线，2.4G / 蓝牙都刷不了）
 
+![刷机流程](assets/05-刷机流程.svg)
+
 ### 步骤
 
 ```bat
@@ -162,6 +168,8 @@ wb32-dfu-updater_cli.exe -t WB32 -U my_backup.bin
 
 ### 2.4G / USB：走 VIA `cmd 20`
 
+![cmd20 帧格式](assets/03-cmd20-帧格式.svg)
+
 刷了补丁之后，键盘会响应：
 
 ```
@@ -179,6 +187,8 @@ wb32-dfu-updater_cli.exe -t WB32 -U my_backup.bin
 | `[5]` | 连接状态 | `0` 未初始化 / `1` 配对中 / `2` 已连接 / `3` 已断开 / `4` 被拒绝 |
 | `[6]` | 无线模块版本 | 当前为 `1` |
 | `[7]` | 指示灯位 | bit0 = Caps Lock |
+
+![指示灯位](assets/04-指示灯位.svg)
 
 **实测样本**（2.4G 下）：
 
@@ -393,9 +403,7 @@ WebHID 只在**安全上下文**可用：
 
 ## 相关项目
 
-### 外设电量（托盘监控工具）
-
-> 📌 **仓库地址待补充** —— 该项目目前尚未发布，发布后在此填写。
+### 外设电量 · [Banxiaxiala/mchose-battery-tray](https://github.com/Banxiaxiala/mchose-battery-tray)
 
 一个托盘小工具，**一个图标同时显示鼠标 / 耳机 / 键盘的电量**。
 
@@ -405,7 +413,7 @@ WebHID 只在**安全上下文**可用：
 - **蓝牙模式** → 读 Windows 的 `DEVPKEY_Bluetooth_Battery` 系统属性
 
 ```
-托盘监控程序  ──┬── 2.4G dongle  ──→ VIA cmd 20 ──→ 本补丁固件 ✅
+外设电量.exe  ──┬── 2.4G dongle  ──→ VIA cmd 20 ──→ 本补丁固件 ✅
                 └── 蓝牙          ──→ 系统 PnP 属性 ──→ FR8003A 模块 ✅
 ```
 

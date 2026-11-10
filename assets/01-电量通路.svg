@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="400"
+     viewBox="0 0 780 400" font-family="ui-sans-serif, system-ui, -apple-system,
+     'Segoe UI', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity=".65"/>
+    </marker>
+    <marker id="arw-g" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2ea043"/>
+    </marker>
+    <marker id="arw-r" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d1242f"/>
+    </marker>
+  </defs>
+  <style>
+    .bg    { fill: #ffffff; }
+    .t     { fill: #1f2328; }
+    .dim   { fill: #59636e; }
+    .box   { fill: #f6f8fa; stroke: #d1d9e0; stroke-width: 1.5; }
+    .boxg  { fill: #dafbe1; stroke: #2ea043; stroke-width: 1.5; }
+    .boxr  { fill: #ffebe9; stroke: #d1242f; stroke-width: 1.5; }
+    .boxb  { fill: #ddf4ff; stroke: #0969da; stroke-width: 1.5; }
+    .bx    { fill: #f6f8fa; stroke: #d1d9e0; stroke-width: 1.2; }
+    .ln    { stroke: currentColor; stroke-width: 1.6; fill: none;
+              opacity: .55; }
+    .lng   { stroke: #2ea043; stroke-width: 2; fill: none; }
+    .lnr   { stroke: #d1242f; stroke-width: 2; fill: none; }
+    .lnd   { stroke: currentColor; stroke-width: 1.4; fill: none;
+              opacity: .35; stroke-dasharray: 5 4; }
+    .mono  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+              font-size: 11.5px; fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .bg   { fill: #0d1117; }
+      .t    { fill: #e6edf3; }
+      .dim  { fill: #9198a1; }
+      .box  { fill: #161b22; stroke: #30363d; }
+      .boxg { fill: #12261e; stroke: #3fb950; }
+      .boxr { fill: #271416; stroke: #f85149; }
+      .boxb { fill: #0c1e33; stroke: #4493f8; }
+      .bx   { fill: #161b22; stroke: #30363d; }
+      .mono { fill: #9198a1; }
+    }
+  </style>
+  <rect class="bg" x="0" y="0" width="780" height="400" rx="10"/>
+<rect class="boxb" x="24" y="130" width="150" height="130" rx="8"/>
+<text class="t" x="99" y="158" font-size="14" font-weight="600" text-anchor="middle">MAX102 键盘</text>
+<text class="dim" x="99" y="178" font-size="11.5" font-weight="400" text-anchor="middle">WB32FQ95 主控</text>
+<line class="lnd" x1="40" y1="190" x2="158" y2="190"/>
+<text class="dim" x="99" y="212" font-size="11" font-weight="400" text-anchor="middle">电量只在内存里</text>
+<text class="dim" x="99" y="230" font-size="11" font-weight="400" text-anchor="middle">0x20000C80</text>
+<text class="dim" x="99" y="250" font-size="11" font-weight="400" text-anchor="middle">→ 点亮 10 颗 LED</text>
+<rect class="box" x="230" y="130" width="140" height="130" rx="8"/>
+<text class="t" x="300" y="158" font-size="14" font-weight="600" text-anchor="middle">FR8003A</text>
+<text class="dim" x="300" y="178" font-size="11.5" font-weight="400" text-anchor="middle">无线模块</text>
+<line class="lnd" x1="246" y1="190" x2="354" y2="190"/>
+<text class="dim" x="300" y="212" font-size="11" font-weight="400" text-anchor="middle">自己测电量</text>
+<text class="dim" x="300" y="232" font-size="11" font-weight="400" text-anchor="middle">BLE + 私有 2.4G</text>
+<path class="ln" d="M 174 175 L 228 175" marker-end="url(#arw)"/>
+<path class="ln" d="M 228 205 L 174 205" marker-end="url(#arw)"/>
+<text class="mono" x="201" y="168" text-anchor="middle">UART3</text>
+<text class="mono" x="201" y="222" text-anchor="middle">115200</text>
+<rect class="boxg" x="430" y="196" width="190" height="38" rx="7"/>
+<text class="t" x="444" y="212" font-size="12.5" font-weight="600" text-anchor="start">USB 线</text>
+<text class="dim" x="444" y="227" font-size="10.5" font-weight="400" text-anchor="start">cmd 20</text>
+<text class="dim" x="606" y="220" font-size="9.5" font-weight="400" text-anchor="end">需要补丁</text>
+<path class="ln" d="M 372 215 L 428 215" marker-end="url(#arw)"/>
+<text class="t" x="422" y="210" font-size="12" font-weight="400" text-anchor="middle">✅</text>
+<rect class="boxg" x="430" y="250" width="190" height="38" rx="7"/>
+<text class="t" x="444" y="266" font-size="12.5" font-weight="600" text-anchor="start">2.4G 接收器</text>
+<text class="dim" x="444" y="281" font-size="10.5" font-weight="400" text-anchor="start">cmd 20</text>
+<text class="dim" x="606" y="274" font-size="9.5" font-weight="400" text-anchor="end">需要补丁</text>
+<path class="ln" d="M 372 269 L 428 269" marker-end="url(#arw)"/>
+<text class="t" x="422" y="264" font-size="12" font-weight="400" text-anchor="middle">✅</text>
+<rect class="boxb" x="430" y="304" width="190" height="38" rx="7"/>
+<text class="t" x="444" y="320" font-size="12.5" font-weight="600" text-anchor="start">蓝牙</text>
+<text class="dim" x="444" y="335" font-size="10.5" font-weight="400" text-anchor="start">系统属性</text>
+<text class="dim" x="606" y="328" font-size="9.5" font-weight="400" text-anchor="end">不需要补丁</text>
+<path class="ln" d="M 372 323 L 428 323" marker-end="url(#arw)"/>
+<text class="t" x="422" y="318" font-size="12" font-weight="400" text-anchor="middle">✅</text>
+<rect class="bx" x="636" y="196" width="130" height="146" rx="7"/>
+<text class="t" x="701" y="218" font-size="11.5" font-weight="600" text-anchor="middle">电脑能看到？</text>
+<line class="lnd" x1="650" y1="228" x2="752" y2="228"/>
+<text class="dim" x="701" y="250" font-size="11" font-weight="400" text-anchor="middle">USB  ✅ 要补丁</text>
+<text class="dim" x="701" y="270" font-size="11" font-weight="400" text-anchor="middle">2.4G ✅ 要补丁</text>
+<text class="dim" x="701" y="290" font-size="11" font-weight="400" text-anchor="middle">蓝牙 ✅ 不用</text>
+<text class="t" x="701" y="322" font-size="10.5" font-weight="600" text-anchor="middle">原厂固件：</text>
+<text class="dim" x="701" y="338" font-size="10.5" font-weight="400" text-anchor="middle">三个都看不到</text>
+<text class="t" x="24" y="40" font-size="15" font-weight="600" text-anchor="start">电量从哪来，怎么才能让电脑看到</text>
+<text class="dim" x="24" y="62" font-size="11.5" font-weight="400" text-anchor="start">电量由无线模块测量；主控收到后只点亮 LED，从不告诉电脑 —— 这是补丁要解决的</text>
+<text class="dim" x="24" y="380" font-size="11.5" font-weight="400" text-anchor="start">补丁做的事：把 FR8003A 通过 UART 送来的数值接上一条新的 VIA 命令（cmd 20），让主机能主动查询</text></svg>
