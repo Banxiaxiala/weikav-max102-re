@@ -1,0 +1,38 @@
+# ===== 固件二进制：不上传（版权归原厂 LEKU / Weikav）=====
+*.bin
+*.hex
+*.elf
+*.uf2
+
+# ===== 设备备份数据：不上传（含本机路径、运行时长等本地信息）=====
+backup_*.json
+max102_info.json
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ===== 编辑器 / 系统 =====
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 工具下载物 =====
+*.zip
+*.tar.gz
+wb32-dfu-updater*/
+wb_dfu_usb_driver*/
+libusb-1.0.dll
+
+# ===== 注意：以下文件是刻意保留的 =====
+# keymap_readable.txt      工厂默认键位表（本项目核心产出）
+# max102_via.json          官方 VIA 定义（需要它才能用 VIA 改键）
+# FIRMWARE_BACKUP_INFO.json 固件校验记录（不含固件本体）

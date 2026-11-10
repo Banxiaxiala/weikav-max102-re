@@ -1,0 +1,38 @@
+{
+  "source": "wb32-dfu-updater_cli -U (DFU 裸读 0x08000000 起 256KB)",
+  "read_time": "2026-11-10 12:49:45",
+  "mcu": "WB32FQ95 (Cortex-M3, 256KB flash)",
+  "pcb": "MA102-QMK-V1 / 2025 05 26",
+  "usb_vid_pid": "0x342D / 0xE537 (normal), 0x342D / 0xDFA0 (DFU)",
+  "via_protocol_version": 12,
+  "layer_count": 5,
+  "device_names": {
+    "usb_product": "MAX102",
+    "bluetooth": [
+      "MAX102 BT4",
+      "MAX102 BT5"
+    ],
+    "2.4g": "MAX102-2.4G",
+    "bt_profiles": [
+      "MAX102-BT1",
+      "MAX102-BT2",
+      "MAX102-BT3"
+    ],
+    "manufacturer_string_in_fw": "LEKU"
+  },
+  "firmware_version_field": "0.0.0 (厂家未填)",
+  "full_256k": {
+    "file": "max102_stock_256k.bin",
+    "size": 262144,
+    "md5": "4014df74ebde3479afcfc90460eae28a",
+    "sha256": "ac842a1134477ad2dc1085b9429fdef0c0cdc0d9554ccecbb51a75968ef9d1b5"
+  },
+  "trimmed": {
+    "file": "max102_stock_trimmed.bin",
+    "size": 69632,
+    "md5": "72feb0cbda334b8bb66a41f0ef39def2",
+    "sha256": "7d9c43d95fd04c94761c38901af9aa3c721770376878da60295eaf049d4a33f1",
+    "note": "截到 4KB 对齐；0x11000 之后全 0"
+  },
+  "verified": "两次独立读取 MD5 完全一致"
+}
